@@ -575,19 +575,23 @@ function JobAuditView() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            {activeJob.categories.map(cat => {
+          <div className="space-y-1">
+            {(activeJob.subcategories || activeJob.categories).map(cat => {
               const isExpanded = expandedCats.has(cat.key)
-              const catTxns = activeJob.transactions.filter(t => t.tax_category === cat.key)
+              const catTxns = activeJob.transactions.filter(t =>
+                activeJob.subcategories ? t.audit_subcategory === cat.key : t.tax_category === cat.key
+              )
+              const letter = cat.key.charAt(0)
+              const isSection = /^[A-S]-/.test(cat.key)
               return (
-                <div key={cat.key} className="border border-gray-100 rounded-lg overflow-hidden">
+                <div key={cat.key} className={`border rounded-lg overflow-hidden ${isSection ? 'border-gray-200' : 'border-gray-100'}`}>
                   <button
                     onClick={() => toggleCat(cat.key)}
-                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-sm cursor-pointer"
+                    className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat.key] || '#6b7280' }} />
-                      <span className="font-medium text-gray-900">{CAT_LABELS[cat.key] || cat.key}</span>
+                      <span className={`font-mono text-xs w-8 ${isSection ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>{letter}</span>
+                      <span className={`${isSection ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>{cat.key}</span>
                       <span className="text-gray-400 text-xs">{cat.count} txns</span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -606,18 +610,21 @@ function JobAuditView() {
           </div>
 
           <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={activeJob.categories.filter(c => c.total !== 0).map(c => ({
-                name: (CAT_LABELS[c.key] || c.key).replace(/ /g, '\n'),
-                value: Math.abs(c.total),
-                fill: CATEGORY_COLORS[c.key] || '#6b7280',
-              }))}>
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
-                <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `$${(v/1000).toFixed(1)}k`} />
+            <ResponsiveContainer width="100%" height={Math.max(200, (activeJob.subcategories || activeJob.categories).filter(c => c.total !== 0).length * 32)}>
+              <BarChart
+                layout="vertical"
+                data={(activeJob.subcategories || activeJob.categories).filter(c => c.total !== 0).map(c => ({
+                  name: c.key,
+                  value: Math.abs(c.total),
+                  isIncome: c.total > 0,
+                }))}
+              >
+                <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `$${(v/1000).toFixed(1)}k`} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={180} />
                 <Tooltip formatter={(v) => fmt(v)} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {activeJob.categories.filter(c => c.total !== 0).map((c) => (
-                    <Cell key={c.key} fill={CATEGORY_COLORS[c.key] || '#6b7280'} />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  {(activeJob.subcategories || activeJob.categories).filter(c => c.total !== 0).map((c) => (
+                    <Cell key={c.key} fill={c.total > 0 ? '#22c55e' : '#ef4444'} />
                   ))}
                 </Bar>
               </BarChart>
