@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { BarChart3, ArrowLeftRight, XCircle, LayoutDashboard, Search, ChevronDown, ChevronUp, Info, Github, Mail } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { BarChart3, ArrowLeftRight, XCircle, LayoutDashboard, Search, ChevronDown, ChevronUp, Info, Github, Mail, ClipboardList, Calendar } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts'
 import data from './data.json'
 
@@ -28,6 +28,8 @@ const TABS = [
   { id: 'categories', label: 'Categories', icon: BarChart3 },
   { id: 'excluded', label: 'Excluded', icon: XCircle },
   { id: 'transfers', label: 'Transfer Pairs', icon: ArrowLeftRight },
+  { id: 'jobs', label: 'Job Audit', icon: ClipboardList },
+  { id: 'monthly', label: 'Monthly', icon: Calendar },
   { id: 'about', label: 'About', icon: Info },
 ]
 
@@ -82,6 +84,8 @@ function App() {
         {activeTab === 'transfers' && (
           <TransferView expandedPairs={expandedPairs} setExpandedPairs={setExpandedPairs} />
         )}
+        {activeTab === 'jobs' && <JobAuditView />}
+        {activeTab === 'monthly' && <MonthlyView />}
         {activeTab === 'about' && <AboutView />}
       </main>
     </div>
@@ -483,6 +487,275 @@ function TransferView({ expandedPairs, setExpandedPairs }) {
   )
 }
 
+const CAT_LABELS = {
+  client_payments: 'Client Payments',
+  material_expenses: 'Material Expenses',
+  contractor_labor: 'Contractor/Labor',
+  shop_overhead: 'Shop Overhead',
+  office_overhead: 'Office Overhead',
+  insurance: 'Insurance',
+  gas_travel: 'Gas/Travel',
+  dining_meals: 'Dining/Meals',
+  owner_compensation: 'Owner Compensation',
+  not_business: 'Not Business',
+  transfer: 'Transfer',
+}
+
+function JobAuditView() {
+  const [selectedJob, setSelectedJob] = useState(null)
+  const [expandedCats, setExpandedCats] = useState(new Set())
+
+  const jobs = data.jobs || []
+  const activeJob = jobs.find(j => j.code === selectedJob)
+
+  const toggleCat = (key) => {
+    setExpandedCats(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
+  const totalExpenses = jobs.reduce((s, j) => s + j.expenses, 0)
+  const totalIncome = jobs.reduce((s, j) => s + j.income, 0)
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Job / Project Audit</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Review expenses and income by project. Each job card shows transactions tied to that project via PO codes and payment notes.
+        </p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
+          {jobs.map(job => (
+            <button
+              key={job.code}
+              onClick={() => { setSelectedJob(selectedJob === job.code ? null : job.code); setExpandedCats(new Set()); }}
+              className={`text-left p-3 rounded-lg border transition-colors cursor-pointer ${
+                selectedJob === job.code
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <p className="text-sm font-semibold text-gray-900 truncate">{job.name}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{job.transactionCount} txns</p>
+              <p className={`text-sm font-bold mt-1 ${job.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(job.net)}</p>
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+          <div>
+            <p className="text-xs text-gray-500">Total Income (all jobs)</p>
+            <p className="text-lg font-bold text-green-600">{fmt(totalIncome)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Total Expenses (all jobs)</p>
+            <p className="text-lg font-bold text-red-600">{fmt(totalExpenses)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Net</p>
+            <p className={`text-lg font-bold ${totalIncome + totalExpenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(totalIncome + totalExpenses)}</p>
+          </div>
+        </div>
+      </div>
+
+      {activeJob && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">{activeJob.name}</h3>
+              <p className="text-sm text-gray-500">{activeJob.transactionCount} transactions &middot; Code: {activeJob.code}</p>
+            </div>
+            <div className="flex gap-4 text-sm">
+              {activeJob.income > 0 && <span className="text-green-600 font-semibold">Income: {fmt(activeJob.income)}</span>}
+              <span className="text-red-600 font-semibold">Expenses: {fmt(activeJob.expenses)}</span>
+              <span className={`font-bold ${activeJob.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>Net: {fmt(activeJob.net)}</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {activeJob.categories.map(cat => {
+              const isExpanded = expandedCats.has(cat.key)
+              const catTxns = activeJob.transactions.filter(t => t.tax_category === cat.key)
+              return (
+                <div key={cat.key} className="border border-gray-100 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => toggleCat(cat.key)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-sm cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat.key] || '#6b7280' }} />
+                      <span className="font-medium text-gray-900">{CAT_LABELS[cat.key] || cat.key}</span>
+                      <span className="text-gray-400 text-xs">{cat.count} txns</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`font-semibold ${cat.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(cat.total)}</span>
+                      {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                    </div>
+                  </button>
+                  {isExpanded && (
+                    <div className="border-t border-gray-100">
+                      <TransactionTable transactions={catTxns} showCategory={false} />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={activeJob.categories.filter(c => c.total !== 0).map(c => ({
+                name: (CAT_LABELS[c.key] || c.key).replace(/ /g, '\n'),
+                value: Math.abs(c.total),
+                fill: CATEGORY_COLORS[c.key] || '#6b7280',
+              }))}>
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `$${(v/1000).toFixed(1)}k`} />
+                <Tooltip formatter={(v) => fmt(v)} />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  {activeJob.categories.filter(c => c.total !== 0).map((c) => (
+                    <Cell key={c.key} fill={CATEGORY_COLORS[c.key] || '#6b7280'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function MonthlyView() {
+  const [expandedMonth, setExpandedMonth] = useState(null)
+
+  const bizCats = ['client_payments', 'material_expenses', 'contractor_labor', 'shop_overhead', 'office_overhead', 'insurance', 'gas_travel', 'dining_meals', 'owner_compensation']
+
+  const monthlyData = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => {
+      const key = String(i + 1).padStart(2, '0')
+      const txns = data.transactions.filter(t => {
+        const m = t.date?.slice(5, 7)
+        return m === key && bizCats.includes(t.tax_category)
+      })
+      const income = txns.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0)
+      const expenses = txns.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0)
+
+      const byCat = {}
+      for (const t of txns) {
+        if (!byCat[t.tax_category]) byCat[t.tax_category] = { count: 0, total: 0 }
+        byCat[t.tax_category].count++
+        byCat[t.tax_category].total += t.amount
+      }
+
+      return {
+        month: MONTHS[i],
+        monthNum: key,
+        income: Math.round(income * 100) / 100,
+        expenses: Math.round(Math.abs(expenses) * 100) / 100,
+        net: Math.round((income + expenses) * 100) / 100,
+        txnCount: txns.length,
+        byCat,
+        transactions: txns,
+      }
+    })
+  }, [])
+
+  const ytdIncome = monthlyData.reduce((s, m) => s + m.income, 0)
+  const ytdExpenses = monthlyData.reduce((s, m) => s + m.expenses, 0)
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard label="YTD Income" value={fmt(ytdIncome)} color="text-green-600" />
+        <StatCard label="YTD Expenses" value={fmt(-ytdExpenses)} color="text-red-600" />
+        <StatCard label="YTD Net P+L" value={fmt(ytdIncome - ytdExpenses)} color={ytdIncome - ytdExpenses >= 0 ? 'text-green-600' : 'text-red-600'} />
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Income vs Expenses</h3>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={monthlyData}>
+            <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+            <Tooltip formatter={(v) => fmt(v)} />
+            <Bar dataKey="income" name="Income" fill="#22c55e" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="text-left py-3 px-4 font-semibold text-gray-700">Month</th>
+              <th className="text-right py-3 px-4 font-semibold text-gray-700">Txns</th>
+              <th className="text-right py-3 px-4 font-semibold text-green-700">Income</th>
+              <th className="text-right py-3 px-4 font-semibold text-red-700">Expenses</th>
+              <th className="text-right py-3 px-4 font-semibold text-gray-700">Net</th>
+              <th className="w-8"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {monthlyData.map((m) => {
+              const isExpanded = expandedMonth === m.monthNum
+              return (
+                <React.Fragment key={m.monthNum}>
+                  <tr
+                    onClick={() => setExpandedMonth(isExpanded ? null : m.monthNum)}
+                    className={`border-b border-gray-100 cursor-pointer transition-colors ${isExpanded ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                  >
+                    <td className="py-3 px-4 font-medium text-gray-900">{m.month} 2025</td>
+                    <td className="py-3 px-4 text-right text-gray-500">{m.txnCount}</td>
+                    <td className="py-3 px-4 text-right text-green-600 font-medium">{m.income > 0 ? fmt(m.income) : '—'}</td>
+                    <td className="py-3 px-4 text-right text-red-600 font-medium">{m.expenses > 0 ? fmt(-m.expenses) : '—'}</td>
+                    <td className={`py-3 px-4 text-right font-semibold ${m.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(m.net)}</td>
+                    <td className="py-3 px-2">{isExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}</td>
+                  </tr>
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={6} className="bg-gray-50 px-4 py-3">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                          {bizCats.filter(c => m.byCat[c]).map(c => (
+                            <div key={c} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100 text-xs">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[c] }} />
+                                <span className="text-gray-700">{CAT_LABELS[c]}</span>
+                              </div>
+                              <span className={`font-semibold ${m.byCat[c].total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {fmt(m.byCat[c].total)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <TransactionTable transactions={m.transactions.sort((a, b) => a.date < b.date ? -1 : 1)} />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              )
+            })}
+            <tr className="bg-gray-50 font-semibold">
+              <td className="py-3 px-4 text-gray-900">Total</td>
+              <td className="py-3 px-4 text-right text-gray-700">{monthlyData.reduce((s, m) => s + m.txnCount, 0)}</td>
+              <td className="py-3 px-4 text-right text-green-600">{fmt(ytdIncome)}</td>
+              <td className="py-3 px-4 text-right text-red-600">{fmt(-ytdExpenses)}</td>
+              <td className={`py-3 px-4 text-right ${ytdIncome - ytdExpenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(ytdIncome - ytdExpenses)}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 function AboutView() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -492,7 +765,10 @@ function AboutView() {
 
         <div className="prose prose-gray max-w-none space-y-4 text-gray-700 text-[15px] leading-relaxed">
           <p>
-            My friend Eric runs a one-man construction company in a small town. Every year around tax time, he faces the same nightmare: pulling together transactions from <strong>eleven different accounts</strong> — business checking, savings, two credit cards, a Home Depot card, Venmo, and store credit accounts at the local hardware store and lumber yard — and figuring out what's a business expense, what's personal, and what's actually income.
+            My husband Eric runs a one-man construction company in a small town. Every year around tax time, he faces the same nightmare: pulling together transactions from <strong>eleven different accounts</strong> — business checking, savings, two credit cards, a Home Depot card, Venmo, and store credit accounts at the local hardware store and lumber yard — and figuring out what's a business expense, what's personal, and what's actually income.
+          </p>
+          <p>
+            He's tried the off-the-shelf tools. QuickBooks, FreshBooks, Wave — they were either too expensive for a solo operator, too bloated with features he'd never use, or just didn't do the one thing he actually needed without also making him manage invoicing, payroll, CRM, and a dozen other things he wasn't looking for. He never found anything that quite fit, at least not easily enough to be worth the friction. So he'd fall back to spreadsheets. Every year.
           </p>
 
           <h3 className="text-lg font-semibold text-gray-900 pt-2">The Problem</h3>
@@ -500,7 +776,7 @@ function AboutView() {
             Eric's clients love paying through Venmo. His contractors expect Venmo too. The issue? When a client sends $5,000 for a kitchen remodel and Eric transfers that money to his business checking account, the bank sees <em>two</em> positive transactions — the Venmo payment and the checking deposit. Without careful tracking, it looks like $10,000 of income instead of $5,000. Multiply that across a year of projects and you're looking at a tax bill for money you never made.
           </p>
           <p>
-            On top of that, Eric writes checks to his lumber yard, pays invoices at the hardware store on a store credit account, and has recurring insurance and utility payments scattered across multiple accounts. His accountant needs a clean summary by category — materials, contractor labor, insurance, overhead, gas — and Eric was doing all of this manually in a spreadsheet. Every year.
+            On top of that, Eric writes checks to his lumber yard, pays invoices at the hardware store on a store credit account, and has recurring insurance and utility payments scattered across multiple accounts. His accountant needs a clean summary by category — materials, contractor labor, insurance, overhead, gas — and Eric was doing all of this manually in a spreadsheet.
           </p>
 
           <h3 className="text-lg font-semibold text-gray-900 pt-2">The Solution</h3>
@@ -523,8 +799,16 @@ function AboutView() {
 
           <h3 className="text-lg font-semibold text-gray-900 pt-2">The Dashboard</h3>
           <p>
-            To make it easy for Eric to review everything before sending it to his accountant, I built this interactive dashboard. He can click into any category and see every transaction, search across descriptions and memos, review what was excluded as personal spending, and verify that every transfer pair is accounted for. No spreadsheet skills required.
+            To make it easy for Eric to review everything before sending it to his accountant, I built this interactive dashboard with seven views:
           </p>
+          <ul className="space-y-1 text-sm">
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Summary</strong> — High-level KPIs, account balances, expense charts, and a full category table</li>
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Categories</strong> — Drill into any tax category with full-text search</li>
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Excluded</strong> — Everything marked personal or as a transfer, to verify nothing was missed</li>
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Transfer Pairs</strong> — Every matched debit ↔ credit pair across accounts</li>
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Job Audit</strong> — Per-project expense breakdowns from PO codes and payment notes, replacing the grueling audit spreadsheets Eric used to maintain by hand</li>
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Monthly</strong> — Income vs. expenses by month with expandable category breakdowns</li>
+          </ul>
           <p>
             The whole pipeline runs in under 10 seconds. What used to take days of manual spreadsheet work now takes one command.
           </p>

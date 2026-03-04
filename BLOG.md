@@ -1,12 +1,14 @@
 # How I Automated Tax Prep for a Small Construction Business
 
-My friend Eric runs a one-man construction company in Moab, Utah. Every year around tax time, he faces the same nightmare: pulling together transactions from *eleven different accounts* — business checking, savings, two credit cards, a Home Depot card, Venmo, and store credit accounts at the local hardware store and lumber yard — and figuring out what's a business expense, what's personal, and what's actually income.
+My husband Eric runs a one-man construction company in Moab, Utah. Every year around tax time, he faces the same nightmare: pulling together transactions from *eleven different accounts* — business checking, savings, two credit cards, a Home Depot card, Venmo, and store credit accounts at the local hardware store and lumber yard — and figuring out what's a business expense, what's personal, and what's actually income.
+
+He's tried the off-the-shelf tools. QuickBooks, FreshBooks, Wave — they were either too expensive for a solo operator, too bloated with features he'd never use, or just didn't do the one thing he actually needed without also making him manage invoicing, payroll, CRM, and a dozen other things he wasn't looking for. He never found anything that quite fit, at least not easily enough to be worth the friction. So he'd fall back to spreadsheets. Every year.
 
 ## The Problem
 
 Eric's clients love paying through Venmo. His contractors expect Venmo too. The issue? When a client sends $5,000 for a kitchen remodel and Eric transfers that money to his business checking account, the bank sees *two* positive transactions — the Venmo payment and the checking deposit. Without careful tracking, it looks like $10,000 of income instead of $5,000. Multiply that across a year of projects and you're looking at a tax bill for money you never made.
 
-On top of that, Eric writes checks to his lumber yard, pays invoices at the hardware store on a store credit account, and has recurring insurance and utility payments scattered across multiple accounts. His accountant needs a clean summary by category — materials, contractor labor, insurance, overhead, gas — and Eric was doing all of this manually in a spreadsheet. Every year.
+On top of that, Eric writes checks to his lumber yard, pays invoices at the hardware store on a store credit account, and has recurring insurance and utility payments scattered across multiple accounts. His accountant needs a clean summary by category — materials, contractor labor, insurance, overhead, gas — and Eric was doing all of this manually in a spreadsheet.
 
 ## The Solution
 
@@ -20,7 +22,16 @@ I built a three-stage Python pipeline that processes everything automatically.
 
 ## The Dashboard
 
-To make it easy for Eric to review everything before sending it to his accountant, I built an interactive React dashboard. He can click into any category and see every transaction, search across descriptions and memos, review what was excluded as personal spending, and verify that every transfer pair is accounted for. No spreadsheet skills required — just click and scroll.
+To make it easy for Eric to review everything before sending it to his accountant, I built an interactive React dashboard with seven views:
+
+- **Summary** — High-level KPIs, account balances, expense charts, and a full category table
+- **Categories** — Drill into any tax category and see every transaction, with full-text search
+- **Excluded** — Review everything marked personal or as a transfer, to make sure nothing was missed
+- **Transfer Pairs** — Every matched debit ↔ credit pair across accounts, sorted chronologically
+- **Job Audit** — Per-project expense breakdowns derived from PO codes and Venmo payment notes, with expandable category details and charts — the beginning of automating the grueling project audit spreadsheets Eric used to maintain by hand
+- **Monthly** — Income vs. expenses by month with expandable per-category breakdowns and transaction lists
+
+No spreadsheet skills required — just click and scroll.
 
 The whole pipeline runs in under 10 seconds. What used to take Eric days of manual spreadsheet work now takes one command.
 
