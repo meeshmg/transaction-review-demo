@@ -914,6 +914,15 @@ function AboutView() {
             michelle@bizzib.ai
           </a>
         </div>
+        <div className="mt-6 p-5 bg-blue-50 rounded-xl border border-blue-100">
+          <p className="text-sm font-semibold text-gray-900 mb-3">Interested in a custom solution for your business?</p>
+          <div className="flex flex-wrap gap-3">
+            <a href="https://bizzib.ai/free-consultation" target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">Schedule a Free Consultation</a>
+            <a href="https://bizzib.ai/contact" target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium">Contact Me</a>
+            <a href="https://bizzib.ai/about" target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">About Me</a>
+            <a href="https://bizzib.ai/services" target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">Services</a>
+          </div>
+        </div>
         <p className="text-sm text-gray-500 mt-4">
           This dashboard uses anonymized sample data. The real version processes live financial data from 11 accounts with a password-protected interface.
         </p>

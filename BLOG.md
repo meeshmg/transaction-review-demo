@@ -39,4 +39,13 @@ The whole pipeline runs in under 10 seconds. What used to take Eric days of manu
 
 ---
 
+Interested in a custom solution for your business? I'd love to chat.
+
+- **[Schedule a Free Consultation](https://bizzib.ai/free-consultation)**
+- **[Contact Me](https://bizzib.ai/contact)**
+- **[About Me](https://bizzib.ai/about)**
+- **[Services](https://bizzib.ai/services)**
+
+---
+
 *Built with Python, pandas, React, TailwindCSS, and Recharts. Source on [GitHub](https://github.com/meeshmg/transaction-review-demo).*
