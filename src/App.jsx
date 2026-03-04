@@ -561,77 +561,139 @@ function JobAuditView() {
         </div>
       </div>
 
-      {activeJob && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{activeJob.name}</h3>
-              <p className="text-sm text-gray-500">{activeJob.transactionCount} transactions &middot; Code: {activeJob.code}</p>
+      {activeJob && (() => {
+        const subs = activeJob.subcategories || activeJob.categories
+        const expenseSubs = subs.filter(c => c.total < 0)
+        const incomeSubs = subs.filter(c => c.total > 0)
+        const SUB_COLORS = [
+          '#3b82f6', '#ef4444', '#f97316', '#8b5cf6', '#06b6d4', '#eab308',
+          '#ec4899', '#14b8a6', '#f43f5e', '#6366f1', '#84cc16', '#a855f7',
+          '#0ea5e9', '#d946ef', '#f59e0b', '#10b981', '#e11d48', '#7c3aed',
+          '#059669', '#dc2626',
+        ]
+        return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            {activeJob.income > 0 && (
+              <div className="bg-green-50 rounded-xl border border-green-200 p-4">
+                <p className="text-xs font-medium text-green-700">Client Payments</p>
+                <p className="text-xl font-bold text-green-600 mt-1">{fmt(activeJob.income)}</p>
+                <p className="text-xs text-green-500 mt-1">{incomeSubs.reduce((s, c) => s + c.count, 0)} transactions</p>
+              </div>
+            )}
+            <div className="bg-red-50 rounded-xl border border-red-200 p-4">
+              <p className="text-xs font-medium text-red-700">Total Expenses</p>
+              <p className="text-xl font-bold text-red-600 mt-1">{fmt(activeJob.expenses)}</p>
+              <p className="text-xs text-red-500 mt-1">{expenseSubs.reduce((s, c) => s + c.count, 0)} transactions across {expenseSubs.length} categories</p>
             </div>
-            <div className="flex gap-4 text-sm">
-              {activeJob.income > 0 && <span className="text-green-600 font-semibold">Income: {fmt(activeJob.income)}</span>}
-              <span className="text-red-600 font-semibold">Expenses: {fmt(activeJob.expenses)}</span>
-              <span className={`font-bold ${activeJob.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>Net: {fmt(activeJob.net)}</span>
+            <div className={`rounded-xl border p-4 ${activeJob.net >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+              <p className={`text-xs font-medium ${activeJob.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>Net P&L</p>
+              <p className={`text-xl font-bold mt-1 ${activeJob.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(activeJob.net)}</p>
+              <p className="text-xs text-gray-500 mt-1">{activeJob.transactionCount} total &middot; Code: {activeJob.code}</p>
             </div>
           </div>
 
-          <div className="space-y-1">
-            {(activeJob.subcategories || activeJob.categories).map(cat => {
-              const isExpanded = expandedCats.has(cat.key)
-              const catTxns = activeJob.transactions.filter(t =>
-                activeJob.subcategories ? t.audit_subcategory === cat.key : t.tax_category === cat.key
-              )
-              const letter = cat.key.charAt(0)
-              const isSection = /^[A-S]-/.test(cat.key)
-              return (
-                <div key={cat.key} className={`border rounded-lg overflow-hidden ${isSection ? 'border-gray-200' : 'border-gray-100'}`}>
-                  <button
-                    onClick={() => toggleCat(cat.key)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm cursor-pointer"
+          {incomeSubs.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Income</h4>
+              <div className="space-y-1">
+                {incomeSubs.map(cat => {
+                  const isExpanded = expandedCats.has(cat.key)
+                  const catTxns = activeJob.transactions.filter(t =>
+                    activeJob.subcategories ? t.audit_subcategory === cat.key : t.tax_category === cat.key
+                  )
+                  return (
+                    <div key={cat.key} className="border border-green-100 rounded-lg overflow-hidden bg-green-50/30">
+                      <button
+                        onClick={() => toggleCat(cat.key)}
+                        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-green-50 transition-colors text-sm cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-3 rounded-full bg-green-500" />
+                          <span className="font-medium text-gray-900">{cat.key}</span>
+                          <span className="text-gray-400 text-xs">{cat.count} txns</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold text-green-600">{fmt(cat.total)}</span>
+                          {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="border-t border-green-100">
+                          <TransactionTable transactions={catTxns} showCategory={false} />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">Expense Breakdown</h4>
+
+            {expenseSubs.length > 0 && (
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <ResponsiveContainer width="100%" height={Math.max(200, expenseSubs.length * 32)}>
+                  <BarChart
+                    layout="vertical"
+                    data={expenseSubs.map((c, i) => ({
+                      name: c.key,
+                      value: Math.abs(c.total),
+                      fill: SUB_COLORS[i % SUB_COLORS.length],
+                    }))}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className={`font-mono text-xs w-8 ${isSection ? 'text-blue-600 font-bold' : 'text-gray-400'}`}>{letter}</span>
-                      <span className={`${isSection ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>{cat.key}</span>
-                      <span className="text-gray-400 text-xs">{cat.count} txns</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`font-semibold ${cat.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(cat.total)}</span>
-                      {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                    </div>
-                  </button>
-                  {isExpanded && (
-                    <div className="border-t border-gray-100">
-                      <TransactionTable transactions={catTxns} showCategory={false} />
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                    <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `$${(v/1000).toFixed(1)}k`} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={180} />
+                    <Tooltip formatter={(v) => fmt(v)} />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                      {expenseSubs.map((c, i) => (
+                        <Cell key={c.key} fill={SUB_COLORS[i % SUB_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
 
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-            <ResponsiveContainer width="100%" height={Math.max(200, (activeJob.subcategories || activeJob.categories).filter(c => c.total !== 0).length * 32)}>
-              <BarChart
-                layout="vertical"
-                data={(activeJob.subcategories || activeJob.categories).filter(c => c.total !== 0).map(c => ({
-                  name: c.key,
-                  value: Math.abs(c.total),
-                  isIncome: c.total > 0,
-                }))}
-              >
-                <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `$${(v/1000).toFixed(1)}k`} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={180} />
-                <Tooltip formatter={(v) => fmt(v)} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {(activeJob.subcategories || activeJob.categories).filter(c => c.total !== 0).map((c) => (
-                    <Cell key={c.key} fill={c.total > 0 ? '#22c55e' : '#ef4444'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="space-y-1">
+              {expenseSubs.map((cat, i) => {
+                const isExpanded = expandedCats.has(cat.key)
+                const catTxns = activeJob.transactions.filter(t =>
+                  activeJob.subcategories ? t.audit_subcategory === cat.key : t.tax_category === cat.key
+                )
+                const letter = cat.key.charAt(0)
+                const isSection = /^[A-S]-/.test(cat.key)
+                return (
+                  <div key={cat.key} className={`border rounded-lg overflow-hidden ${isSection ? 'border-gray-200' : 'border-gray-100'}`}>
+                    <button
+                      onClick={() => toggleCat(cat.key)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: SUB_COLORS[i % SUB_COLORS.length] }} />
+                        <span className={`${isSection ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>{cat.key}</span>
+                        <span className="text-gray-400 text-xs">{cat.count} txns</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-red-600">{fmt(cat.total)}</span>
+                        {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                      </div>
+                    </button>
+                    {isExpanded && (
+                      <div className="border-t border-gray-100">
+                        <TransactionTable transactions={catTxns} showCategory={false} />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
