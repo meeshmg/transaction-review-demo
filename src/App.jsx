@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { BarChart3, ArrowLeftRight, XCircle, LayoutDashboard, Search, ChevronDown, ChevronUp } from 'lucide-react'
+import { BarChart3, ArrowLeftRight, XCircle, LayoutDashboard, Search, ChevronDown, ChevronUp, Info, Github, Mail } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts'
 import data from './data.json'
 
@@ -28,6 +28,7 @@ const TABS = [
   { id: 'categories', label: 'Categories', icon: BarChart3 },
   { id: 'excluded', label: 'Excluded', icon: XCircle },
   { id: 'transfers', label: 'Transfer Pairs', icon: ArrowLeftRight },
+  { id: 'about', label: 'About', icon: Info },
 ]
 
 function App() {
@@ -81,6 +82,7 @@ function App() {
         {activeTab === 'transfers' && (
           <TransferView expandedPairs={expandedPairs} setExpandedPairs={setExpandedPairs} />
         )}
+        {activeTab === 'about' && <AboutView />}
       </main>
     </div>
   )
@@ -123,7 +125,7 @@ function SummaryView() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="text-lg font-semibold text-gray-900 mb-1">Business Summary</h3>
-          <p className="text-sm text-gray-500 mb-4">EHAS account balances</p>
+          <p className="text-sm text-gray-500 mb-4">Business account balances</p>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100">
@@ -182,7 +184,7 @@ function SummaryView() {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">EHAS Accts Summary</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Business Accounts Summary</h3>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200">
@@ -476,6 +478,92 @@ function TransferView({ expandedPairs, setExpandedPairs }) {
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Unpaired Transfers</h3>
         <p className="text-sm text-gray-500 mb-4">{unpaired.length} transfers without a matching counterpart (Venmo funding, Betterment, external A2A, etc.)</p>
         <TransactionTable transactions={unpaired} showCategory={false} />
+      </div>
+    </div>
+  )
+}
+
+function AboutView() {
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">How I Automated Tax Prep for a Small Construction Business</h2>
+        <p className="text-sm text-gray-500 mb-6">A portfolio project by Michelle Griffith</p>
+
+        <div className="prose prose-gray max-w-none space-y-4 text-gray-700 text-[15px] leading-relaxed">
+          <p>
+            My friend Eric runs a one-man construction company in a small town. Every year around tax time, he faces the same nightmare: pulling together transactions from <strong>eleven different accounts</strong> — business checking, savings, two credit cards, a Home Depot card, Venmo, and store credit accounts at the local hardware store and lumber yard — and figuring out what's a business expense, what's personal, and what's actually income.
+          </p>
+
+          <h3 className="text-lg font-semibold text-gray-900 pt-2">The Problem</h3>
+          <p>
+            Eric's clients love paying through Venmo. His contractors expect Venmo too. The issue? When a client sends $5,000 for a kitchen remodel and Eric transfers that money to his business checking account, the bank sees <em>two</em> positive transactions — the Venmo payment and the checking deposit. Without careful tracking, it looks like $10,000 of income instead of $5,000. Multiply that across a year of projects and you're looking at a tax bill for money you never made.
+          </p>
+          <p>
+            On top of that, Eric writes checks to his lumber yard, pays invoices at the hardware store on a store credit account, and has recurring insurance and utility payments scattered across multiple accounts. His accountant needs a clean summary by category — materials, contractor labor, insurance, overhead, gas — and Eric was doing all of this manually in a spreadsheet. Every year.
+          </p>
+
+          <h3 className="text-lg font-semibold text-gray-900 pt-2">The Solution</h3>
+          <p>I built a three-stage Python pipeline that processes everything automatically.</p>
+
+          <div className="bg-gray-50 rounded-lg p-5 space-y-3 border border-gray-100">
+            <div>
+              <span className="font-semibold text-gray-900">Stage 1: Unify.</span>{' '}
+              A processing script ingests CSVs from the banks, parses HTML statements from the hardware store, and extracts text from PDF statements from the lumber yard using <code className="bg-gray-200 px-1.5 py-0.5 rounded text-sm">pdftotext</code>. Every transaction gets normalized into a single format. The script also detects inter-account transfers and pairs them, so that $5,000 moving from Venmo to checking is flagged as one transfer, not two income events. 1,310 transactions across 11 accounts, unified in seconds.
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900">Stage 2: Categorize.</span>{' '}
+              A rules engine automatically assigns each transaction to a tax category. It uses regex pattern matching on descriptions, Venmo-specific rules that match counterparty names with payment notes, and account-level defaults as a fallback. The result: 100% of transactions categorized with zero manual intervention.
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900">Stage 3: Report.</span>{' '}
+              A summary script aggregates everything into the exact format the accountant expects — client payments, material expenses, contractor labor, shop overhead, office overhead, insurance, gas, owner draws, and net P&amp;L. It also tracks the opening and closing balances of the business accounts.
+            </div>
+          </div>
+
+          <h3 className="text-lg font-semibold text-gray-900 pt-2">The Dashboard</h3>
+          <p>
+            To make it easy for Eric to review everything before sending it to his accountant, I built this interactive dashboard. He can click into any category and see every transaction, search across descriptions and memos, review what was excluded as personal spending, and verify that every transfer pair is accounted for. No spreadsheet skills required.
+          </p>
+          <p>
+            The whole pipeline runs in under 10 seconds. What used to take days of manual spreadsheet work now takes one command.
+          </p>
+
+          <h3 className="text-lg font-semibold text-gray-900 pt-2">Tech Stack</h3>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+            <div><span className="text-gray-500">Data pipeline:</span> Python, pandas</div>
+            <div><span className="text-gray-500">PDF parsing:</span> pdftotext + regex</div>
+            <div><span className="text-gray-500">HTML parsing:</span> Regex extraction</div>
+            <div><span className="text-gray-500">Dashboard:</span> React 19, Vite, TailwindCSS 4</div>
+            <div><span className="text-gray-500">Charts:</span> Recharts</div>
+            <div><span className="text-gray-500">Deployment:</span> Netlify</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Get in Touch</h3>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <a
+            href="https://github.com/meeshmg/transaction-review-demo"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-5 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+          >
+            <Github size={18} />
+            View Source on GitHub
+          </a>
+          <a
+            href="mailto:michelle@bizzib.ai"
+            className="flex items-center gap-3 px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            <Mail size={18} />
+            michelle@bizzib.ai
+          </a>
+        </div>
+        <p className="text-sm text-gray-500 mt-4">
+          This dashboard uses anonymized sample data. The real version processes live financial data from 11 accounts with a password-protected interface.
+        </p>
       </div>
     </div>
   )
