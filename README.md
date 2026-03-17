@@ -41,7 +41,9 @@ This project automates that entire workflow with a three-stage Python pipeline, 
 ```
 transaction-review-demo/
 ├── docs/
-│   ├── BLOG.md                  # Narrative write-up for content marketing
+│   ├── blog/
+│   │   ├── 2026-03-04-building-the-pipeline.md    # Phase 1: pipeline + dashboard
+│   │   └── 2026-03-17-from-prototype-to-platform.md # Phase 2: serverless, iteration, workflow
 │   └── CHANGELOG.md             # Dated record of all changes
 ├── netlify/
 │   └── functions/

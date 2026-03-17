@@ -763,6 +763,7 @@ const TABS = [
   { id: 'transfers', label: 'Transfer Pairs', icon: ArrowLeftRight },
   { id: 'jobs', label: 'Job Audit', icon: ClipboardList },
   { id: 'monthly', label: 'Monthly', icon: Calendar },
+  { id: 'blog', label: 'Blog', icon: FileText },
   { id: 'about', label: 'About', icon: Info },
 ]
 
@@ -877,6 +878,7 @@ function App() {
         )}
         {activeTab === 'jobs' && <JobAuditView />}
         {activeTab === 'monthly' && <MonthlyView />}
+        {activeTab === 'blog' && <BlogView />}
         {activeTab === 'about' && <AboutView />}
         <FeedbackPanel page={activeTab} />
       </main>
@@ -1969,121 +1971,116 @@ function MonthlyView() {
   )
 }
 
+function BlogView() {
+  const posts = [
+    {
+      title: 'Building a Tax-Ready Transaction Pipeline for a One-Man Construction Company',
+      date: 'March 4, 2026',
+      phase: 'Phase 1',
+      phaseColor: 'bg-blue-100 text-blue-700',
+      excerpt: "11 accounts. 1,300 transactions. Duplicate transfers across accounts. Your accountant is waiting for these numbers. And why does everyone love to pay with Venmo??? One custom-built dashboard. Here's how I solved tax season for a small-town contractor.",
+      tags: ['Python', 'ETL Pipeline', 'PDF Parsing', 'React Dashboard', 'Tax Automation'],
+      url: 'https://bizzib.ai/portfolio/transaction-review',
+    },
+    {
+      title: 'Let the User Edit: How a Static Dashboard Became a Full-Stack Platform',
+      date: 'March 17, 2026',
+      phase: 'Phase 2',
+      phaseColor: 'bg-indigo-100 text-indigo-700',
+      excerpt: "The dashboard worked. Then a real user touched it — and 846 ghost edits, a sign convention nobody warned me about, and a double-counted check later, I learned why shipping v1 is only half the job. Here's how a read-only prototype became a serverless platform with real-time sync, in-app communication, and a documentation-driven workflow.",
+      tags: ['Serverless', 'Netlify Functions', 'Real-Time Sync', 'Feedback Loop', 'Documentation as Infrastructure'],
+      url: 'https://bizzib.ai/portfolio/let-the-user-edit-part-2-transaction-review',
+    },
+  ]
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-1">Project Blog</h2>
+        <p className="text-sm text-gray-500 mb-6">The story behind this project, told in two parts — from pipeline prototype to full-stack platform.</p>
+
+        <div className="space-y-5">
+          {posts.map((post, i) => (
+            <a
+              key={i}
+              href={post.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block group"
+            >
+              <div className="border border-gray-200 rounded-xl p-6 hover:border-blue-300 hover:shadow-md transition-all">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${post.phaseColor}`}>{post.phase}</span>
+                  <span className="text-xs text-gray-400">{post.date}</span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-2">{post.title}</h3>
+                <p className="text-sm text-gray-600 leading-relaxed mb-4">{post.excerpt}</p>
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {post.tags.map(tag => (
+                    <span key={tag} className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{tag}</span>
+                  ))}
+                </div>
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 group-hover:text-blue-700">
+                  Read on bizzib.ai <ExternalLink size={14} />
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-6 text-center">
+        <p className="text-sm text-gray-700 mb-3">Want to see how I work — not just what I build?</p>
+        <p className="text-xs text-gray-500 mb-4">These posts cover real bugs, real domain challenges, and the iteration process behind this dashboard.</p>
+        <a
+          href="https://bizzib.ai/portfolio"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+        >
+          View Full Portfolio <ExternalLink size={14} />
+        </a>
+      </div>
+    </div>
+  )
+}
+
 function AboutView() {
   const stats = useRealStats()
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="bg-white rounded-xl border border-gray-200 p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">How I Automated Tax Prep for a Small Construction Business</h2>
-        <p className="text-sm text-gray-500 mb-6">A portfolio project by Michelle Griffith</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-1">About This Project</h2>
+        <p className="text-sm text-gray-500 mb-6">A portfolio project by Michelle Griffith — <a href="https://bizzib.ai" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">bizzib.ai</a></p>
 
-        <div className="prose prose-gray max-w-none space-y-4 text-gray-700 text-[15px] leading-relaxed">
+        <div className="space-y-4 text-sm text-gray-700 leading-relaxed">
           <p>
-            My fiancé Eric runs a one-man construction company in a small town. Every year around tax time, he faces the same nightmare: pulling together transactions from <strong>eleven different accounts</strong> — business checking, savings, two credit cards, a Home Depot card, Venmo, and store credit accounts at the local hardware store and lumber yard — and figuring out what's a business expense, what's personal, and what's actually income.
+            This is a <strong>live, interactive demo</strong> of a custom-built transaction review dashboard for small business tax preparation. It processes data from 11 financial accounts, auto-categorizes 1,300+ transactions, detects cross-account transfer pairs, and gives the business owner an interactive tool to review, correct, and annotate everything before handing it to their accountant.
           </p>
           <p>
-            He's tried the off-the-shelf tools. QuickBooks, FreshBooks, Wave — they were either too expensive for a solo operator, too bloated with features he'd never use, or just didn't do the one thing he actually needed without also making him manage invoicing, payroll, CRM, and a dozen other things he wasn't looking for. So he'd fall back to spreadsheets. Every year.
-          </p>
-
-          <h3 className="text-lg font-semibold text-gray-900 pt-2">The Problem</h3>
-          <p>
-            Eric's clients love paying through Venmo. His contractors expect Venmo too. The issue? When a client sends $5,000 for a kitchen remodel and Eric transfers that money to his business checking account, the bank sees <em>two</em> positive transactions — the Venmo payment and the checking deposit. Without careful tracking, it looks like $10,000 of income instead of $5,000. Multiply that across a year and you're looking at a tax bill for money you never made.
+            The demo uses anonymized sample data. The <strong>production version</strong> processes real financial data behind a password, with server-side persistence, two-way developer-to-client communication, and a documentation-driven workflow.
           </p>
           <p>
-            On top of that, Eric writes checks to his lumber yard, pays invoices at the hardware store on a store credit account, and has recurring insurance and utility payments scattered across multiple accounts. His accountant needs a clean summary by category — materials, contractor labor, insurance, overhead, gas — and Eric was doing all of this manually in a spreadsheet.
+            Read the full story on the <strong>Blog</strong> tab — two posts covering the pipeline build, the bugs that surfaced when a real user started editing, and the architecture decisions that followed.
           </p>
+        </div>
+      </div>
 
-          <h3 className="text-lg font-semibold text-gray-900 pt-2">The Solution: A Three-Stage Pipeline</h3>
-
-          <div className="bg-gray-50 rounded-lg p-5 space-y-3 border border-gray-100">
-            <div>
-              <span className="font-semibold text-gray-900">Stage 1: Unify.</span>{' '}
-              A processing script ingests CSVs from the banks, parses HTML statements from the hardware store, and extracts text from PDF statements from the lumber yard using <code className="bg-gray-200 px-1.5 py-0.5 rounded text-sm">pdftotext</code>. Every transaction gets normalized into a single format. The script also detects inter-account transfers and pairs them, so that $5,000 moving from Venmo to checking is flagged as one transfer, not two income events. 1,310 transactions across 11 accounts, unified in seconds.
-            </div>
-            <div>
-              <span className="font-semibold text-gray-900">Stage 2: Categorize.</span>{' '}
-              A rules engine automatically assigns each transaction to a tax category using regex pattern matching on descriptions, Venmo-specific rules that match counterparty names with payment notes, and account-level defaults. 100% categorized with zero manual intervention.
-            </div>
-            <div>
-              <span className="font-semibold text-gray-900">Stage 3: Report.</span>{' '}
-              Aggregates everything into the exact format the accountant expects — client payments, material expenses, contractor labor, overhead, insurance, gas, owner draws, and net P&amp;L.
-            </div>
-          </div>
-
-          <h3 className="text-lg font-semibold text-gray-900 pt-2">The Dashboard</h3>
-          <p>
-            The dashboard you're using right now is a live, interactive review tool — not just a read-only report. Here's what it does:
-          </p>
-          <ul className="space-y-1 text-sm">
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Summary</strong> — KPIs, account balances, expense charts, and a full tax category table</li>
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Categories</strong> — Drill into any category with full-text search and editable transaction fields</li>
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Excluded</strong> — Review everything marked personal or transfer</li>
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Transfer Pairs</strong> — Matched debit ↔ credit pairs across accounts</li>
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Job Audit</strong> — Per-project expense breakdowns from PO codes and payment notes</li>
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Monthly</strong> — Income vs. expenses by month with expandable breakdowns</li>
-          </ul>
-
-          <h3 className="text-lg font-semibold text-gray-900 pt-2">Interactive Features</h3>
-          <ul className="space-y-1 text-sm">
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Edit categories</strong> — Reassign any transaction via dropdown, or create custom categories</li>
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Add notes</strong> — Click any Notes cell for free-text annotations</li>
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Flag for review</strong> — One-click flagging with filtered view</li>
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Leave feedback</strong> — Page-level feedback at the bottom of every view</li>
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Change log with undo</strong> — Every edit is timestamped and reversible</li>
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Export</strong> — JSON change log, edits snapshot, or filtered CSV</li>
-          </ul>
-
-          <h3 className="text-lg font-semibold text-gray-900 pt-2">Server-Side Architecture</h3>
-          <p>
-            This isn't just a static frontend. Behind the scenes, this demo runs on a <strong>serverless backend</strong> that I built and maintain:
-          </p>
-          <div className="bg-blue-50 rounded-lg p-5 space-y-3 border border-blue-100 text-sm">
-            <div>
-              <span className="font-semibold text-gray-900">Real-time sync.</span>{' '}
-              Every edit, note, flag, and feedback entry you make is automatically synced to the server via Netlify Functions + Netlify Blobs. Nothing is lost if you close the tab.
-            </div>
-            <div>
-              <span className="font-semibold text-gray-900">Analytics tracking.</span>{' '}
-              Visitor sessions, feature interactions, tab views, and tour completions are all tracked server-side. I can see which features people actually use — not just that they visited.
-            </div>
-            <div>
-              <span className="font-semibold text-gray-900">Admin tooling.</span>{' '}
-              A Python script lets me pull all analytics, signups, and visitor edits from the server at any time. No database admin panel needed — just one command.
-            </div>
-            <div>
-              <span className="font-semibold text-gray-900">The production version goes further.</span>{' '}
-              The real dashboard (behind a password) adds two-way communication — a Messages tab for sending updates to the business owner, an Open Questions tab where he answers domain-specific questions, and a pull script that processes his answers into documentation.
-            </div>
-          </div>
-
-          <h3 className="text-lg font-semibold text-gray-900 pt-2">What I Can Build For You</h3>
-          <p>
-            This project demonstrates the kind of custom tooling I build for small businesses:
-          </p>
-          <ul className="space-y-1.5 text-sm">
-            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Data pipelines</strong> that ingest messy real-world formats (CSV, PDF, HTML, APIs) and normalize them</li>
-            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Interactive dashboards</strong> where business owners can review, annotate, and export data</li>
-            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Serverless backends</strong> with real-time sync, analytics, and admin tooling</li>
-            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Two-way communication</strong> between developer and business owner, built into the tool itself</li>
-            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Domain expertise</strong> — this dashboard includes IRS Schedule C references and tax category explanations</li>
-            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Zero ongoing cost</strong> for the business owner — no SaaS subscriptions, no per-seat pricing</li>
-          </ul>
-
-          <h3 className="text-lg font-semibold text-gray-900 pt-2">Tech Stack</h3>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-            <div><span className="text-gray-500">Data pipeline:</span> Python, pandas</div>
-            <div><span className="text-gray-500">PDF parsing:</span> pdftotext + regex</div>
-            <div><span className="text-gray-500">HTML parsing:</span> Regex extraction</div>
-            <div><span className="text-gray-500">Dashboard:</span> React 19, Vite, TailwindCSS 4</div>
-            <div><span className="text-gray-500">Charts:</span> Recharts</div>
-            <div><span className="text-gray-500">Icons:</span> Lucide React</div>
-            <div><span className="text-gray-500">State:</span> React Context + localStorage</div>
-            <div><span className="text-gray-500">Backend:</span> Netlify Functions (serverless)</div>
-            <div><span className="text-gray-500">Storage:</span> Netlify Blobs</div>
-            <div><span className="text-gray-500">Deployment:</span> Netlify (CI/CD from GitHub)</div>
-            <div><span className="text-gray-500">Admin:</span> Python pull scripts</div>
-            <div><span className="text-gray-500">Hosting cost:</span> $0 for the end user</div>
-          </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Tech Stack</h3>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+          <div><span className="text-gray-500">Data pipeline:</span> Python, pandas</div>
+          <div><span className="text-gray-500">PDF parsing:</span> pdftotext + regex</div>
+          <div><span className="text-gray-500">HTML parsing:</span> Regex extraction</div>
+          <div><span className="text-gray-500">Dashboard:</span> React 19, Vite, TailwindCSS 4</div>
+          <div><span className="text-gray-500">Charts:</span> Recharts</div>
+          <div><span className="text-gray-500">Icons:</span> Lucide React</div>
+          <div><span className="text-gray-500">State:</span> React Context + localStorage</div>
+          <div><span className="text-gray-500">Backend:</span> Netlify Functions (serverless)</div>
+          <div><span className="text-gray-500">Storage:</span> Netlify Blobs</div>
+          <div><span className="text-gray-500">Deployment:</span> Netlify (CI/CD from GitHub)</div>
+          <div><span className="text-gray-500">Admin:</span> Python pull scripts</div>
+          <div><span className="text-gray-500">Hosting cost:</span> $0 for the end user</div>
         </div>
       </div>
 
@@ -2146,9 +2143,6 @@ function AboutView() {
             <a href="https://bizzib.ai/services" target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">Services</a>
           </div>
         </div>
-        <p className="text-sm text-gray-500 mt-4">
-          This dashboard uses anonymized sample data. The production version processes live financial data from 11 accounts, with server-side persistence, two-way communication, and a password-protected interface.
-        </p>
       </div>
     </div>
   )

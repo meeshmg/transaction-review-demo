@@ -4,6 +4,23 @@ All notable changes to the Transaction Review Demo are documented here.
 
 ---
 
+## 2026-03-17 — Blog & Repo Reorganization
+
+### Blog Posts
+- Replaced single `docs/BLOG.md` with dated `docs/blog/` directory
+- **2026-03-04-building-the-pipeline.md** — Phase 1 story (restored original content + update note linking to Phase 2)
+- **2026-03-17-from-prototype-to-platform.md** — Phase 2 story covering iteration, bug discovery, domain learning, communication layer, documentation-driven workflow, and forward vision
+
+### Repo Structure
+- Moved `BLOG.md`, `CHANGELOG.md` → `docs/`
+- Moved `pull_demo_analytics.py` → `scripts/`
+- Removed Vite scaffold cruft (`App.css`, `assets/react.svg`, `public/vite.svg`)
+- Removed stray screenshot from repo root
+- Added Repo Structure section to README
+- Updated all path references (workflow, cron job, script, README)
+
+---
+
 ## 2026-03-17 — Serverless Overhaul
 
 Transformed the demo from a static localStorage-only frontend into a full-stack application with serverless backend, analytics, and admin tooling.

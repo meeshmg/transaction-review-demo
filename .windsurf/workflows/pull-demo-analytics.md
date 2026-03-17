@@ -65,7 +65,7 @@ If you make any changes to the demo dashboard based on analytics or feedback:
 
 1. Update `docs/CHANGELOG.md` with a new dated section describing what changed and why
 2. Update `README.md` if features, architecture, or tech stack changed
-3. Update `docs/BLOG.md` if the narrative needs to reflect new capabilities
+3. Add a new post to `docs/blog/` if the change warrants a narrative write-up
 4. Commit docs with the code change — never commit code without updating docs
 
 ## Cron Job Management
