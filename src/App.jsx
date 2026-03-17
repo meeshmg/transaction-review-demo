@@ -886,13 +886,39 @@ function App() {
   )
 }
 
-function StatCard({ label, value, sub, color }) {
+function StatCard({ label, value, sub, color, tooltip }) {
+  const [showTip, setShowTip] = useState(false)
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <p className="text-sm font-medium text-gray-500">{label}</p>
+    <div className="bg-white rounded-xl border border-gray-200 p-5 relative"
+         onMouseEnter={() => tooltip && setShowTip(true)}
+         onMouseLeave={() => setShowTip(false)}>
+      <p className="text-sm font-medium text-gray-500 flex items-center gap-1">
+        {label}
+        {tooltip && <span className="text-gray-300 cursor-help text-xs">ⓘ</span>}
+      </p>
       <p className={`text-2xl font-bold mt-1 ${color || 'text-gray-900'}`}>{value}</p>
       {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+      {showTip && tooltip && (
+        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg leading-relaxed">
+          {tooltip}
+        </div>
+      )}
     </div>
+  )
+}
+
+function Tip({ text, children }) {
+  const [show, setShow] = useState(false)
+  return (
+    <span className="relative inline-flex items-center gap-1" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+      {children}
+      <span className="text-gray-300 cursor-help text-xs">ⓘ</span>
+      {show && (
+        <span className="absolute z-50 left-0 top-full mt-1 w-64 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg leading-relaxed">
+          {text}
+        </span>
+      )}
+    </span>
   )
 }
 
@@ -900,7 +926,10 @@ function SummaryView() {
   const { categories } = useEdits()
   const bizCats = categories.filter(c => c.isBusiness)
   const income = bizCats.filter(c => c.total > 0).reduce((s, c) => s + c.total, 0)
-  const expenses = bizCats.filter(c => c.total < 0).reduce((s, c) => s + c.total, 0)
+  const ownerComp = bizCats.find(c => c.key === 'owner_compensation')
+  const ownerDraws = ownerComp ? Math.min(ownerComp.total, 0) : 0
+  const operatingExpenses = bizCats.filter(c => c.total < 0 && c.key !== 'owner_compensation').reduce((s, c) => s + c.total, 0)
+  const expenses = operatingExpenses + ownerDraws
   const net = income + expenses
 
   const chartData = bizCats
@@ -909,16 +938,26 @@ function SummaryView() {
     .sort((a, b) => b.value - a.value)
 
   const pieData = bizCats
-    .filter(c => c.total < 0)
+    .filter(c => c.total < 0 && c.key !== 'owner_compensation')
     .map(c => ({ name: c.name.replace(/ \(Overhead\)/, ''), value: Math.abs(c.total), key: c.key }))
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard label="Client Payments" value={fmt(income)} sub={`${bizCats.find(c => c.key === 'client_payments')?.count || 0} transactions`} color="text-green-600" />
-        <StatCard label="Total Expenses" value={fmt(expenses)} sub={`${bizCats.filter(c => c.total < 0).reduce((s,c) => s + c.count, 0)} transactions`} color="text-red-600" />
-        <StatCard label="Net P+L" value={fmt(net)} color={net >= 0 ? 'text-green-600' : 'text-red-600'} />
-        <StatCard label="Total Transactions" value={data.totalTransactions.toLocaleString()} sub={`${data.transferPairs.length} transfer pairs matched`} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard label="Client Payments" value={fmt(income)} sub={`${bizCats.find(c => c.key === 'client_payments')?.count || 0} transactions`} color="text-green-600"
+          tooltip="Gross receipts from clients for services performed (Schedule C, Line 1). This is total business revenue before subtracting any expenses." />
+        <StatCard label="Operating Expenses" value={fmt(operatingExpenses)} sub={`${bizCats.filter(c => c.total < 0 && c.key !== 'owner_compensation').reduce((s,c) => s + c.count, 0)} transactions`} color="text-red-600"
+          tooltip="Deductible business expenses reported on Schedule C (Lines 8–27): materials, contract labor, insurance, rent, utilities, vehicle expenses, and meals. Subtract these from gross receipts to get your net profit or loss." />
+        <StatCard label="Operating P+L" value={fmt(income + operatingExpenses)} color={income + operatingExpenses >= 0 ? 'text-green-600' : 'text-red-600'}
+          tooltip="Gross receipts minus deductible business expenses. This is your Schedule C net profit or loss (Line 31) — the number reported on your tax return. A negative value means the business operated at a loss. Owner draws are not included because they are not a deductible expense." />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard label="Owner Draws" value={fmt(ownerDraws)} sub={`${ownerComp?.count || 0} transactions`} color="text-amber-600"
+          tooltip="Personal withdrawals from the business by the owner. Per IRS rules, a sole proprietor cannot deduct their own salary or personal withdrawals (IRS Pub. 334). These do not appear on Schedule C and do not affect taxable income." />
+        <StatCard label="Net P+L (after draws)" value={fmt(net)} color={net >= 0 ? 'text-green-600' : 'text-red-600'}
+          tooltip="Operating P+L minus Owner Draws. This shows total cash flow impact on the business after the owner has taken money out. This is not a tax number — only Operating P+L is reported on Schedule C." />
+        <StatCard label="Total Transactions" value={data.totalTransactions.toLocaleString()} sub={`${data.transferPairs.length} transfer pairs matched`}
+          tooltip="Total number of transactions across all accounts in the dataset, including business, personal, transfers, and excluded items." />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -993,7 +1032,7 @@ function SummaryView() {
             </tr>
           </thead>
           <tbody>
-            {bizCats.sort((a, b) => a.total - b.total).map(c => (
+            {bizCats.filter(c => c.key !== 'owner_compensation').sort((a, b) => a.total - b.total).map(c => (
               <tr key={c.key} className="border-b border-gray-50">
                 <td className="py-2.5 flex items-center gap-2">
                   <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: CATEGORY_COLORS[c.key] }} />
@@ -1005,10 +1044,32 @@ function SummaryView() {
                 </td>
               </tr>
             ))}
+            <tr className="border-t border-gray-200 bg-gray-50">
+              <td className="py-2.5 font-semibold text-gray-700 pl-5">
+                <Tip text="Gross receipts minus deductible expenses (Schedule C, Line 31). This is the net profit or loss reported on your tax return.">Operating P+L</Tip>
+              </td>
+              <td></td>
+              <td className={`text-right font-semibold ${income + operatingExpenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(income + operatingExpenses)}</td>
+            </tr>
+            {ownerComp && (
+              <tr className="border-b border-gray-50 bg-amber-50/50">
+                <td className="py-2.5 flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: CATEGORY_COLORS['owner_compensation'] }} />
+                  <Tip text="Personal withdrawals by the owner. Per IRS rules, a sole proprietor cannot deduct their own salary or personal withdrawals (IRS Pub. 334).">
+                    <span className="font-medium text-amber-800">{ownerComp.name}</span>
+                  </Tip>
+                  <span className="text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">not deductible</span>
+                </td>
+                <td className="text-right text-gray-500">{ownerComp.count}</td>
+                <td className="text-right font-semibold text-amber-600">{fmt(Math.abs(ownerComp.total))}</td>
+              </tr>
+            )}
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-gray-300">
-              <td className="py-3 font-bold text-gray-900">Net P+L</td>
+              <td className="py-3 font-bold text-gray-900">
+                <Tip text="Operating P+L minus Owner Draws. Shows total cash flow after the owner has taken money out. Only Operating P+L is reported on Schedule C for taxes.">Net P+L (after draws)</Tip>
+              </td>
               <td></td>
               <td className={`text-right font-bold text-lg ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(net)}</td>
             </tr>
