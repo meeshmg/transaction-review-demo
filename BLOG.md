@@ -25,11 +25,36 @@ I built a three-stage Python pipeline that processes everything automatically.
 To make it easy for Eric to review everything before sending it to his accountant, I built an interactive React dashboard with seven views:
 
 - **Summary** — High-level KPIs, account balances, expense charts, and a full category table
-- **Categories** — Drill into any tax category and see every transaction, with full-text search
+- **Categories** — Drill into any tax category and see every transaction, with full-text search and editable fields
 - **Excluded** — Review everything marked personal or as a transfer, to make sure nothing was missed
 - **Transfer Pairs** — Every matched debit ↔ credit pair across accounts, sorted chronologically
 - **Job Audit** — Per-project expense breakdowns derived from PO codes and Venmo payment notes, with expandable category details and charts — the beginning of automating the grueling project audit spreadsheets Eric used to maintain by hand
 - **Monthly** — Income vs. expenses by month with expandable per-category breakdowns and transaction lists
+
+### It's Not Just Read-Only
+
+This is more than a reporting tool — it's a collaborative review system. Eric can:
+
+- **Change any transaction's category** via a dropdown, or add custom categories on the fly
+- **Add notes** to any transaction row to leave context for the accountant
+- **Flag transactions** for follow-up with a single click, then filter to see only flagged items
+- **Leave page-level feedback** at the bottom of every view
+- **View a full change log** with the ability to undo any individual edit
+- **Export everything** — change log as JSON, edits snapshot, or filtered CSV
+
+Every edit is timestamped, persisted in `localStorage`, and exportable. When Eric finishes reviewing, I download his change log and feed it back into the categorization rules so the pipeline gets smarter over time.
+
+## The Public Demo
+
+I also built a [public-facing version](https://transaction-review-demo.netlify.app) of the dashboard using anonymized sample data so anyone can try it out.
+
+The demo includes a few extra features designed for a portfolio audience:
+
+- **No login required to browse** — the full dashboard is visible immediately
+- **Identity prompt on interaction** — when you try to edit, add a note, or leave feedback, a modal asks for your name and email so every change is attributed
+- **Guided tour** — a "Take a Tour" button walks visitors through the key interactive features step by step
+- **Onboarding hints** — subtle pulse animations draw attention to interactive elements on first visit
+- **Share buttons** — copy link, LinkedIn, and X/Twitter sharing on the About page
 
 No spreadsheet skills required — just click and scroll.
 
@@ -48,4 +73,4 @@ Interested in a custom solution for your business? I'd love to chat.
 
 ---
 
-*Built with Python, pandas, React, TailwindCSS, and Recharts. Source on [GitHub](https://github.com/meeshmg/transaction-review-demo).*
+*Built with Python, pandas, React, TailwindCSS, Recharts, and Lucide React. Source on [GitHub](https://github.com/meeshmg/transaction-review-demo).*
