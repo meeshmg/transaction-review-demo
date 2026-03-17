@@ -10,7 +10,7 @@ Run this workflow periodically (or after sharing the demo link) to review visito
 
 // turbo
 ```bash
-cd /Users/mgriffith/Desktop/transaction-review-demo && python3 pull_demo_analytics.py
+cd /Users/mgriffith/Desktop/transaction-review-demo && python3 scripts/pull_demo_analytics.py
 ```
 
 This downloads all data from the live Netlify Functions and saves raw JSON to `data/exports/`.
@@ -63,9 +63,9 @@ These are gitignored. Keep them locally for trend analysis over time.
 
 If you make any changes to the demo dashboard based on analytics or feedback:
 
-1. Update `CHANGELOG.md` with a new dated section describing what changed and why
+1. Update `docs/CHANGELOG.md` with a new dated section describing what changed and why
 2. Update `README.md` if features, architecture, or tech stack changed
-3. Update `BLOG.md` if the narrative needs to reflect new capabilities
+3. Update `docs/BLOG.md` if the narrative needs to reflect new capabilities
 4. Commit docs with the code change — never commit code without updating docs
 
 ## Cron Job Management
@@ -84,7 +84,7 @@ crontab -r
 
 **Re-enable at a different time (e.g., 8am):**
 ```bash
-echo "0 8 * * * /Users/mgriffith/miniconda3/bin/python3 /Users/mgriffith/Desktop/transaction-review-demo/pull_demo_analytics.py >> /Users/mgriffith/Desktop/transaction-review-demo/data/exports/cron.log 2>&1" | crontab -
+echo "0 8 * * * /Users/mgriffith/miniconda3/bin/python3 /Users/mgriffith/Desktop/transaction-review-demo/scripts/pull_demo_analytics.py >> /Users/mgriffith/Desktop/transaction-review-demo/data/exports/cron.log 2>&1" | crontab -
 ```
 
 **Check cron output:**

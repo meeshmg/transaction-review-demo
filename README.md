@@ -36,6 +36,37 @@ This project automates that entire workflow with a three-stage Python pipeline, 
 | Deployment | Netlify (CI/CD from GitHub) |
 | Admin tooling | Python pull scripts |
 
+## Repo Structure
+
+```
+transaction-review-demo/
+├── docs/
+│   ├── BLOG.md                  # Narrative write-up for content marketing
+│   └── CHANGELOG.md             # Dated record of all changes
+├── netlify/
+│   └── functions/
+│       ├── analytics.mjs        # Session/event/signup/identity tracking
+│       ├── stats.mjs            # Aggregated public stats endpoint
+│       └── sync.mjs             # Per-visitor edit persistence
+├── scripts/
+│   └── pull_demo_analytics.py   # Admin script to download all analytics
+├── src/
+│   ├── App.jsx                  # Full dashboard (single-file React app)
+│   ├── data.json                # Anonymized sample transaction data
+│   ├── index.css                # TailwindCSS entry point
+│   └── main.jsx                 # React entry point
+├── data/
+│   └── exports/                 # Local analytics archives (gitignored)
+├── .windsurf/
+│   └── workflows/               # Windsurf IDE workflows
+├── index.html                   # Vite entry
+├── netlify.toml                 # Netlify build + functions + redirects
+├── package.json
+├── vite.config.js
+├── eslint.config.js
+└── README.md
+```
+
 ## Dashboard Views
 
 - **Summary** — KPI cards, account balances, expense breakdown charts, full tax category table
@@ -105,7 +136,7 @@ All edits are stored in `localStorage` **and** synced to the server (debounced 3
 ### Admin Pull Script
 
 ```bash
-python pull_demo_analytics.py
+python scripts/pull_demo_analytics.py
 ```
 
 Downloads all analytics and visitor edits, prints a summary, and saves raw JSON to `data/exports/`.
@@ -141,8 +172,8 @@ CSV/HTML/PDF Sources
                                          │
                                          ▼
                                 ┌─────────────────────────┐
+                                │ scripts/                 │
                                 │  pull_demo_analytics.py  │
-                                │  (admin pull script)     │
                                 └─────────────────────────┘
 ```
 

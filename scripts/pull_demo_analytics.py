@@ -18,7 +18,7 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError
 
 SITE_URL = "https://transaction-review-demo.netlify.app"
-EXPORT_DIR = os.path.join(os.path.dirname(__file__), "data", "exports")
+EXPORT_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "exports")
 
 
 def fetch_json(path):
