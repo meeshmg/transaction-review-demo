@@ -2,7 +2,7 @@
 
 My fiancé Eric runs a one-man construction company in Moab, Utah. Every year around tax time, he faces the same nightmare: pulling together transactions from *eleven different accounts* — business checking, savings, two credit cards, a Home Depot card, Venmo, and store credit accounts at the local hardware store and lumber yard — and figuring out what's a business expense, what's personal, and what's actually income.
 
-He's tried the off-the-shelf tools. QuickBooks, FreshBooks, Wave — they were either too expensive for a solo operator, too bloated with features he'd never use, or just didn't do the one thing he actually needed without also making him manage invoicing, payroll, CRM, and a dozen other things he wasn't looking for. He never found anything that quite fit, at least not easily enough to be worth the friction. So he'd fall back to spreadsheets. Every year.
+He's tried the off-the-shelf tools. QuickBooks, FreshBooks, Wave — they were either too expensive for a solo operator, too bloated with features he'd never use, or just didn't do the one thing he actually needed without also making him manage invoicing, payroll, CRM, and a dozen other things he wasn't looking for. So he'd fall back to spreadsheets. Every year.
 
 ## The Problem
 
@@ -28,7 +28,7 @@ To make it easy for Eric to review everything before sending it to his accountan
 - **Categories** — Drill into any tax category and see every transaction, with full-text search and editable fields
 - **Excluded** — Review everything marked personal or as a transfer, to make sure nothing was missed
 - **Transfer Pairs** — Every matched debit ↔ credit pair across accounts, sorted chronologically
-- **Job Audit** — Per-project expense breakdowns derived from PO codes and Venmo payment notes, with expandable category details and charts — the beginning of automating the grueling project audit spreadsheets Eric used to maintain by hand
+- **Job Audit** — Per-project expense breakdowns derived from PO codes and Venmo payment notes, with expandable category details and charts
 - **Monthly** — Income vs. expenses by month with expandable per-category breakdowns and transaction lists
 
 ### It's Not Just Read-Only
@@ -44,19 +44,31 @@ This is more than a reporting tool — it's a collaborative review system. Eric 
 
 Every edit is timestamped, persisted in `localStorage`, and exportable. When Eric finishes reviewing, I download his change log and feed it back into the categorization rules so the pipeline gets smarter over time.
 
+## The Server-Side Layer
+
+What started as a localStorage-only frontend evolved into a full-stack application. The production dashboard now runs on a **serverless backend** using Netlify Functions and Netlify Blobs:
+
+- **Real-time sync** — Every edit, note, flag, and feedback entry auto-syncs to the server (debounced 3s). Nothing is lost if Eric closes the tab or clears his browser.
+- **Admin pull script** — I run `python pull_edits.py` to download all of Eric's edits, feedback, and question answers at any time. No need for him to export anything.
+- **Two-way communication** — A Messages tab lets me send updates directly to Eric inside the dashboard. An Open Questions tab publishes domain-specific questions for him to answer one-by-one, and those answers flow back to me through the pull script.
+- **Pipeline feedback loop** — Eric's answers update the project documentation, which informs the next round of pipeline improvements. The tool teaches me about the business while the business owner uses it.
+
+This architecture means the business owner never has to learn a new tool, install anything, or remember to export files. They just use the dashboard and I see everything on my end.
+
 ## The Public Demo
 
-I also built a [public-facing version](https://transaction-review-demo.netlify.app) of the dashboard using anonymized sample data so anyone can try it out.
-
-The demo includes a few extra features designed for a portfolio audience:
+I also built a [public-facing version](https://transaction-review-demo.netlify.app) using anonymized sample data — and it runs on the same serverless architecture:
 
 - **No login required to browse** — the full dashboard is visible immediately
-- **Identity prompt on interaction** — when you try to edit, add a note, or leave feedback, a modal asks for your name and email so every change is attributed
-- **Guided tour** — a "Take a Tour" button walks visitors through the key interactive features step by step
-- **Onboarding hints** — subtle pulse animations draw attention to interactive elements on first visit
-- **Share buttons** — copy link, LinkedIn, and X/Twitter sharing on the About page
+- **Identity prompt on interaction** — edit, note, or leave feedback and you're asked for a name and email
+- **Every interaction syncs to the server** — I can see exactly which features people try, which tabs they visit, and what feedback they leave
+- **Real visitor analytics** — sessions, feature usage, tab views, tour completions, and email signups are all tracked server-side
+- **Admin pull script** — One command (`python pull_demo_analytics.py`) downloads all visitor analytics, email signups, and edit data
+- **Live stats** — Real visitor counts and interaction metrics displayed in the header and on the About page
+- **Guided tour** — walks visitors through the key features step by step
+- **Email capture** — signups go to the server (not just localStorage)
 
-No spreadsheet skills required — just click and scroll.
+The demo isn't just a portfolio piece — it's a live proof of concept that captures real leads while demonstrating the full stack.
 
 The whole pipeline runs in under 10 seconds. What used to take Eric days of manual spreadsheet work now takes one command.
 
@@ -73,4 +85,4 @@ Interested in a custom solution for your business? I'd love to chat.
 
 ---
 
-*Built with Python, pandas, React, TailwindCSS, Recharts, and Lucide React. Source on [GitHub](https://github.com/meeshmg/transaction-review-demo).*
+*Built with Python, pandas, React 19, TailwindCSS 4, Recharts, Lucide React, Netlify Functions, and Netlify Blobs. Source on [GitHub](https://github.com/meeshmg/transaction-review-demo).*

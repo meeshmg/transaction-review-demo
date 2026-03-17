@@ -3,6 +3,98 @@ import { BarChart3, ArrowLeftRight, XCircle, LayoutDashboard, Search, ChevronDow
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts'
 import data from './data.json'
 
+// ── Analytics & Server Sync ─────────────────────────────────────────────────
+const API_BASE = '/api'
+const VISITOR_KEY = 'demo_visitor_id'
+
+function getVisitorId() {
+  let id = localStorage.getItem(VISITOR_KEY)
+  if (!id) {
+    id = crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)
+    localStorage.setItem(VISITOR_KEY, id)
+  }
+  return id
+}
+
+// Fire-and-forget event tracking
+function trackEvent(action, detail = '', tab = '') {
+  const visitor_id = getVisitorId()
+  fetch(`${API_BASE}/analytics`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'event', visitor_id, action, detail, tab }),
+  }).catch(() => {})
+}
+
+// Record session on first load
+let _sessionRecorded = false
+function recordSession() {
+  if (_sessionRecorded) return
+  _sessionRecorded = true
+  const visitor_id = getVisitorId()
+  fetch(`${API_BASE}/analytics`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'session',
+      visitor_id,
+      referrer: document.referrer || '',
+      user_agent: navigator.userAgent || '',
+    }),
+  }).catch(() => {})
+}
+
+// Post identity to server
+function trackIdentity(name, email) {
+  fetch(`${API_BASE}/analytics`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'identity', visitor_id: getVisitorId(), name, email }),
+  }).catch(() => {})
+}
+
+// Post email signup to server
+function trackSignup(name, email) {
+  fetch(`${API_BASE}/analytics`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'signup', visitor_id: getVisitorId(), name, email }),
+  }).catch(() => {})
+}
+
+// Debounced sync of visitor edits to server
+let _syncTimer = null
+function syncVisitorEdits(edits, changeLog, customCategories, feedback, identity) {
+  clearTimeout(_syncTimer)
+  _syncTimer = setTimeout(() => {
+    fetch(`${API_BASE}/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        visitor_id: getVisitorId(),
+        edits,
+        changeLog,
+        customCategories,
+        feedback,
+        identity,
+      }),
+    }).catch(() => {})
+  }, 3000)
+}
+
+// Real stats from server
+function useRealStats() {
+  const [stats, setStats] = useState({ visitors: 0, totalEdits: 0, totalSessions: 0 })
+  useEffect(() => {
+    recordSession()
+    fetch(`${API_BASE}/stats`)
+      .then(r => r.json())
+      .then(data => setStats(data))
+      .catch(() => {})
+  }, [])
+  return stats
+}
+
 // ── Identity (non-blocking) ─────────────────────────────────────────────────
 const IDENTITY_KEY = 'demo_reviewer_identity'
 
@@ -35,6 +127,8 @@ function IdentityProvider({ children }) {
     localStorage.setItem(IDENTITY_KEY, JSON.stringify(id))
     setIdentity(id)
     setShowPrompt(false)
+    trackIdentity(id.name, id.email)
+    trackEvent('identity_submit', id.email)
     if (pendingAction) { pendingAction(); setPendingAction(null) }
   }
 
@@ -136,6 +230,11 @@ function EditProvider({ children }) {
   useEffect(() => { localStorage.setItem(CUSTOM_CATS_KEY, JSON.stringify(customCategories)) }, [customCategories])
   useEffect(() => { localStorage.setItem(FEEDBACK_KEY, JSON.stringify(feedback)) }, [feedback])
 
+  // Sync all state to server (debounced)
+  useEffect(() => {
+    syncVisitorEdits(edits, changeLog, customCategories, feedback, identityRef.current)
+  }, [edits, changeLog, customCategories, feedback])
+
   const getUserStamp = () => {
     const id = identityRef.current
     return { user_name: id?.name || null, user_email: id?.email || null }
@@ -158,11 +257,13 @@ function EditProvider({ children }) {
   const updateCategory = useCallback((txnId, oldCat, newCat, description) => {
     setEdits(prev => ({ ...prev, [txnId]: { ...prev[txnId], category: newCat } }))
     setChangeLog(prev => [...prev, { timestamp: new Date().toISOString(), type: 'category_change', transaction_id: txnId, description, from: oldCat, to: newCat, ...getUserStamp() }])
+    trackEvent('category_change', `${oldCat} → ${newCat}`)
   }, [])
 
   const updateNote = useCallback((txnId, note, description) => {
     setEdits(prev => ({ ...prev, [txnId]: { ...prev[txnId], note } }))
     setChangeLog(prev => [...prev, { timestamp: new Date().toISOString(), type: 'note', transaction_id: txnId, description, note, ...getUserStamp() }])
+    trackEvent('note', note.slice(0, 50))
   }, [])
 
   const toggleFlag = useCallback((txnId, description) => {
@@ -171,12 +272,14 @@ function EditProvider({ children }) {
       return { ...prev, [txnId]: { ...cur, flagged: !cur.flagged } }
     })
     setChangeLog(prev => [...prev, { timestamp: new Date().toISOString(), type: 'flag_toggle', transaction_id: txnId, description, ...getUserStamp() }])
+    trackEvent('flag_toggle', description?.slice(0, 50))
   }, [])
 
   const addFeedback = useCallback((page, text) => {
     const entry = { timestamp: new Date().toISOString(), page, text, ...getUserStamp() }
     setFeedback(prev => [...prev, entry])
     setChangeLog(prev => [...prev, { ...entry, type: 'general_feedback' }])
+    trackEvent('feedback', text.slice(0, 50), page)
   }, [])
 
   const undoChange = useCallback((index) => {
@@ -452,7 +555,7 @@ function GuidedTour({ onNavigate }) {
   if (!active) {
     return (
       <button
-        onClick={() => { setActive(true); setStep(0); }}
+        onClick={() => { setActive(true); setStep(0); trackEvent('tour_start'); }}
         className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors cursor-pointer"
         title="Take a guided tour of the dashboard"
       >
@@ -496,7 +599,7 @@ function GuidedTour({ onNavigate }) {
               </button>
             )}
             {isLast ? (
-              <button onClick={() => setActive(false)} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors cursor-pointer">
+              <button onClick={() => { setActive(false); trackEvent('tour_complete'); }} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors cursor-pointer">
                 <Check size={14} /> Done
               </button>
             ) : (
@@ -509,26 +612,6 @@ function GuidedTour({ onNavigate }) {
       </div>
     </div>
   )
-}
-
-// ── Visitor Counter (localStorage-based, simulated) ─────────────────────────
-const VISITOR_KEY = 'demo_visitor_id'
-const VISIT_COUNT_KEY = 'demo_visit_count'
-
-function useVisitorCount() {
-  const [count, setCount] = useState(0)
-  useEffect(() => {
-    let c = parseInt(localStorage.getItem(VISIT_COUNT_KEY) || '0', 10)
-    if (!localStorage.getItem(VISITOR_KEY)) {
-      localStorage.setItem(VISITOR_KEY, crypto.randomUUID?.() || Math.random().toString(36).slice(2))
-      c = c + Math.floor(Math.random() * 3) + 1
-    } else {
-      c = c + 1
-    }
-    localStorage.setItem(VISIT_COUNT_KEY, String(c))
-    setCount(c + 142)
-  }, [])
-  return count
 }
 
 // ── Email List / Bizzib Popup (shows after ~60s) ────────────────────────────
@@ -554,9 +637,15 @@ function EmailListPopup() {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!emailInput.trim() || !emailInput.includes('@')) return
+    const signupName = nameInput.trim()
+    const signupEmail = emailInput.trim().toLowerCase()
+    // Save locally as backup
     const signups = JSON.parse(localStorage.getItem('demo_email_signups') || '[]')
-    signups.push({ name: nameInput.trim(), email: emailInput.trim().toLowerCase(), timestamp: new Date().toISOString() })
+    signups.push({ name: signupName, email: signupEmail, timestamp: new Date().toISOString() })
     localStorage.setItem('demo_email_signups', JSON.stringify(signups))
+    // Send to server
+    trackSignup(signupName, signupEmail)
+    trackEvent('email_signup', signupEmail)
     setSubmitted(true)
     setTimeout(dismiss, 3000)
   }
@@ -686,7 +775,16 @@ function App() {
   const { changeLog, downloadChangeLog, downloadEditsSnapshot, resetAll, edits } = useEdits()
   const { identity, signOut } = useIdentity()
   const editCount = Object.keys(edits).length
-  const visitorCount = useVisitorCount()
+  const stats = useRealStats()
+
+  // Track tab views
+  const prevTab = React.useRef(activeTab)
+  useEffect(() => {
+    if (prevTab.current !== activeTab) {
+      trackEvent('tab_view', activeTab, activeTab)
+    }
+    prevTab.current = activeTab
+  }, [activeTab])
 
   const navigateToTab = useCallback((tab) => {
     setActiveTab(tab)
@@ -707,7 +805,7 @@ function App() {
               <h1 className="text-2xl font-bold text-gray-900">Transaction Review Dashboard</h1>
               <p className="text-sm text-gray-500">{data.year} Tax Year &middot; {data.totalTransactions.toLocaleString()} transactions
                 {editCount > 0 && <span className="ml-2 text-amber-600 font-medium">({editCount} edits)</span>}
-                <span className="ml-2 text-gray-400"><Eye size={11} className="inline -mt-0.5" /> {visitorCount} views</span>
+                {stats.visitors > 0 && <span className="ml-2 text-gray-400"><Eye size={11} className="inline -mt-0.5" /> {stats.visitors} visitors{stats.totalEdits > 0 ? ` · ${stats.totalEdits} interactions` : ''}</span>}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1872,6 +1970,7 @@ function MonthlyView() {
 }
 
 function AboutView() {
+  const stats = useRealStats()
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="bg-white rounded-xl border border-gray-200 p-8">
@@ -1883,19 +1982,18 @@ function AboutView() {
             My fiancé Eric runs a one-man construction company in a small town. Every year around tax time, he faces the same nightmare: pulling together transactions from <strong>eleven different accounts</strong> — business checking, savings, two credit cards, a Home Depot card, Venmo, and store credit accounts at the local hardware store and lumber yard — and figuring out what's a business expense, what's personal, and what's actually income.
           </p>
           <p>
-            He's tried the off-the-shelf tools. QuickBooks, FreshBooks, Wave — they were either too expensive for a solo operator, too bloated with features he'd never use, or just didn't do the one thing he actually needed without also making him manage invoicing, payroll, CRM, and a dozen other things he wasn't looking for. He never found anything that quite fit, at least not easily enough to be worth the friction. So he'd fall back to spreadsheets. Every year.
+            He's tried the off-the-shelf tools. QuickBooks, FreshBooks, Wave — they were either too expensive for a solo operator, too bloated with features he'd never use, or just didn't do the one thing he actually needed without also making him manage invoicing, payroll, CRM, and a dozen other things he wasn't looking for. So he'd fall back to spreadsheets. Every year.
           </p>
 
           <h3 className="text-lg font-semibold text-gray-900 pt-2">The Problem</h3>
           <p>
-            Eric's clients love paying through Venmo. His contractors expect Venmo too. The issue? When a client sends $5,000 for a kitchen remodel and Eric transfers that money to his business checking account, the bank sees <em>two</em> positive transactions — the Venmo payment and the checking deposit. Without careful tracking, it looks like $10,000 of income instead of $5,000. Multiply that across a year of projects and you're looking at a tax bill for money you never made.
+            Eric's clients love paying through Venmo. His contractors expect Venmo too. The issue? When a client sends $5,000 for a kitchen remodel and Eric transfers that money to his business checking account, the bank sees <em>two</em> positive transactions — the Venmo payment and the checking deposit. Without careful tracking, it looks like $10,000 of income instead of $5,000. Multiply that across a year and you're looking at a tax bill for money you never made.
           </p>
           <p>
             On top of that, Eric writes checks to his lumber yard, pays invoices at the hardware store on a store credit account, and has recurring insurance and utility payments scattered across multiple accounts. His accountant needs a clean summary by category — materials, contractor labor, insurance, overhead, gas — and Eric was doing all of this manually in a spreadsheet.
           </p>
 
-          <h3 className="text-lg font-semibold text-gray-900 pt-2">The Solution</h3>
-          <p>I built a three-stage Python pipeline that processes everything automatically.</p>
+          <h3 className="text-lg font-semibold text-gray-900 pt-2">The Solution: A Three-Stage Pipeline</h3>
 
           <div className="bg-gray-50 rounded-lg p-5 space-y-3 border border-gray-100">
             <div>
@@ -1904,45 +2002,72 @@ function AboutView() {
             </div>
             <div>
               <span className="font-semibold text-gray-900">Stage 2: Categorize.</span>{' '}
-              A rules engine automatically assigns each transaction to a tax category. It uses regex pattern matching on descriptions, Venmo-specific rules that match counterparty names with payment notes, and account-level defaults as a fallback. The result: 100% of transactions categorized with zero manual intervention.
+              A rules engine automatically assigns each transaction to a tax category using regex pattern matching on descriptions, Venmo-specific rules that match counterparty names with payment notes, and account-level defaults. 100% categorized with zero manual intervention.
             </div>
             <div>
               <span className="font-semibold text-gray-900">Stage 3: Report.</span>{' '}
-              A summary script aggregates everything into the exact format the accountant expects — client payments, material expenses, contractor labor, shop overhead, office overhead, insurance, gas, owner draws, and net P&amp;L. It also tracks the opening and closing balances of the business accounts.
+              Aggregates everything into the exact format the accountant expects — client payments, material expenses, contractor labor, overhead, insurance, gas, owner draws, and net P&amp;L.
             </div>
           </div>
 
           <h3 className="text-lg font-semibold text-gray-900 pt-2">The Dashboard</h3>
           <p>
-            To make it easy for Eric to review everything before sending it to his accountant, I built this interactive dashboard with seven views:
+            The dashboard you're using right now is a live, interactive review tool — not just a read-only report. Here's what it does:
           </p>
           <ul className="space-y-1 text-sm">
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Summary</strong> — High-level KPIs, account balances, expense charts, and a full category table</li>
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Categories</strong> — Drill into any tax category and see every transaction, with full-text search and editable fields</li>
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Excluded</strong> — Everything marked personal or as a transfer, to verify nothing was missed</li>
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Transfer Pairs</strong> — Every matched debit ↔ credit pair across accounts</li>
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Job Audit</strong> — Per-project expense breakdowns from PO codes and payment notes, replacing the grueling audit spreadsheets Eric used to maintain by hand</li>
-            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Monthly</strong> — Income vs. expenses by month with expandable category breakdowns</li>
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Summary</strong> — KPIs, account balances, expense charts, and a full tax category table</li>
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Categories</strong> — Drill into any category with full-text search and editable transaction fields</li>
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Excluded</strong> — Review everything marked personal or transfer</li>
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Transfer Pairs</strong> — Matched debit ↔ credit pairs across accounts</li>
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Job Audit</strong> — Per-project expense breakdowns from PO codes and payment notes</li>
+            <li className="flex gap-2"><span className="text-blue-600 font-bold">→</span> <strong>Monthly</strong> — Income vs. expenses by month with expandable breakdowns</li>
           </ul>
 
           <h3 className="text-lg font-semibold text-gray-900 pt-2">Interactive Features</h3>
-          <p>
-            This isn't just a read-only dashboard. Eric can actively review and annotate transactions right in the browser:
-          </p>
           <ul className="space-y-1 text-sm">
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Change categories</strong> — Reassign any transaction's tax category via dropdown, or add a custom category</li>
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Add notes</strong> — Click any row's Notes cell to leave free-text annotations</li>
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Flag for review</strong> — Mark transactions for follow-up with a single click</li>
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Leave feedback</strong> — Page-level feedback panel at the bottom of every view</li>
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Change log with undo</strong> — Every edit is timestamped and reversible from the Change Log panel</li>
-            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Export</strong> — Download the change log as JSON, export edits snapshots, or export filtered CSV data</li>
+            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Edit categories</strong> — Reassign any transaction via dropdown, or create custom categories</li>
+            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Add notes</strong> — Click any Notes cell for free-text annotations</li>
+            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Flag for review</strong> — One-click flagging with filtered view</li>
+            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Leave feedback</strong> — Page-level feedback at the bottom of every view</li>
+            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Change log with undo</strong> — Every edit is timestamped and reversible</li>
+            <li className="flex gap-2"><span className="text-indigo-600 font-bold">→</span> <strong>Export</strong> — JSON change log, edits snapshot, or filtered CSV</li>
           </ul>
+
+          <h3 className="text-lg font-semibold text-gray-900 pt-2">Server-Side Architecture</h3>
           <p>
-            In this public demo, interactive actions prompt you for your name and email so every change is attributed. In the real version, Eric accesses the dashboard behind a password and his changes are automatically tracked.
+            This isn't just a static frontend. Behind the scenes, this demo runs on a <strong>serverless backend</strong> that I built and maintain:
           </p>
+          <div className="bg-blue-50 rounded-lg p-5 space-y-3 border border-blue-100 text-sm">
+            <div>
+              <span className="font-semibold text-gray-900">Real-time sync.</span>{' '}
+              Every edit, note, flag, and feedback entry you make is automatically synced to the server via Netlify Functions + Netlify Blobs. Nothing is lost if you close the tab.
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900">Analytics tracking.</span>{' '}
+              Visitor sessions, feature interactions, tab views, and tour completions are all tracked server-side. I can see which features people actually use — not just that they visited.
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900">Admin tooling.</span>{' '}
+              A Python script lets me pull all analytics, signups, and visitor edits from the server at any time. No database admin panel needed — just one command.
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900">The production version goes further.</span>{' '}
+              The real dashboard (behind a password) adds two-way communication — a Messages tab for sending updates to the business owner, an Open Questions tab where he answers domain-specific questions, and a pull script that processes his answers into documentation.
+            </div>
+          </div>
+
+          <h3 className="text-lg font-semibold text-gray-900 pt-2">What I Can Build For You</h3>
           <p>
-            The whole pipeline runs in under 10 seconds. What used to take days of manual spreadsheet work now takes one command.
+            This project demonstrates the kind of custom tooling I build for small businesses:
           </p>
+          <ul className="space-y-1.5 text-sm">
+            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Data pipelines</strong> that ingest messy real-world formats (CSV, PDF, HTML, APIs) and normalize them</li>
+            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Interactive dashboards</strong> where business owners can review, annotate, and export data</li>
+            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Serverless backends</strong> with real-time sync, analytics, and admin tooling</li>
+            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Two-way communication</strong> between developer and business owner, built into the tool itself</li>
+            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Domain expertise</strong> — this dashboard includes IRS Schedule C references and tax category explanations</li>
+            <li className="flex gap-2"><span className="text-green-600 font-bold">✓</span> <strong>Zero ongoing cost</strong> for the business owner — no SaaS subscriptions, no per-seat pricing</li>
+          </ul>
 
           <h3 className="text-lg font-semibold text-gray-900 pt-2">Tech Stack</h3>
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
@@ -1953,10 +2078,39 @@ function AboutView() {
             <div><span className="text-gray-500">Charts:</span> Recharts</div>
             <div><span className="text-gray-500">Icons:</span> Lucide React</div>
             <div><span className="text-gray-500">State:</span> React Context + localStorage</div>
-            <div><span className="text-gray-500">Deployment:</span> Netlify</div>
+            <div><span className="text-gray-500">Backend:</span> Netlify Functions (serverless)</div>
+            <div><span className="text-gray-500">Storage:</span> Netlify Blobs</div>
+            <div><span className="text-gray-500">Deployment:</span> Netlify (CI/CD from GitHub)</div>
+            <div><span className="text-gray-500">Admin:</span> Python pull scripts</div>
+            <div><span className="text-gray-500">Hosting cost:</span> $0 for the end user</div>
           </div>
         </div>
       </div>
+
+      {stats.visitors > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Live Demo Stats</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{stats.visitors}</p>
+              <p className="text-xs text-gray-500">Unique Visitors</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-indigo-600">{stats.totalEdits}</p>
+              <p className="text-xs text-gray-500">Interactions</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-green-600">{stats.totalSignups || 0}</p>
+              <p className="text-xs text-gray-500">Email Signups</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-amber-600">{stats.tourCompletions || 0}</p>
+              <p className="text-xs text-gray-500">Tours Completed</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-gray-400 text-center mt-3">Real numbers from the server — not localStorage estimates.</p>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Share This Demo</h3>
@@ -1993,7 +2147,7 @@ function AboutView() {
           </div>
         </div>
         <p className="text-sm text-gray-500 mt-4">
-          This dashboard uses anonymized sample data. The real version processes live financial data from 11 accounts with a password-protected interface.
+          This dashboard uses anonymized sample data. The production version processes live financial data from 11 accounts, with server-side persistence, two-way communication, and a password-protected interface.
         </p>
       </div>
     </div>

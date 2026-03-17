@@ -1,6 +1,6 @@
 # Transaction Review Dashboard — Interactive Demo
 
-An interactive web dashboard for reviewing and categorizing financial transactions across multiple accounts for small business tax preparation. This is the **public-facing demo** with anonymized sample data and full interactivity.
+An interactive web dashboard for reviewing and categorizing financial transactions across multiple accounts for small business tax preparation. Built with a **serverless backend** for real-time sync, analytics, and admin tooling.
 
 **[Live Demo](https://transaction-review-demo.netlify.app)**
 
@@ -8,7 +8,7 @@ An interactive web dashboard for reviewing and categorizing financial transactio
 
 Small business owners often have transactions spread across many accounts — business checking, savings, credit cards, Venmo, store credit accounts — and need to consolidate everything into a single view, categorize transactions for tax purposes, and verify that inter-account transfers aren't being double-counted as income.
 
-This project automates that entire workflow with a three-stage Python pipeline and an interactive React dashboard for human review.
+This project automates that entire workflow with a three-stage Python pipeline, an interactive React dashboard for human review, and a serverless backend that persists data, tracks analytics, and enables admin tooling.
 
 ### What it does
 
@@ -16,6 +16,9 @@ This project automates that entire workflow with a three-stage Python pipeline a
 2. **Automated categorization** — Rules engine with 3 layers (regex pattern matching, Venmo counterparty/note matching, account-level defaults) categorizes 100% of transactions
 3. **Transfer detection & pairing** — Identifies inter-account transfers and pairs debits with credits across accounts to prevent double-counting
 4. **Interactive review dashboard** — React web app for editing categories, adding notes, flagging transactions, exporting data, and leaving feedback
+5. **Server-side persistence** — All edits sync to the server in real time via Netlify Functions + Netlify Blobs
+6. **Analytics & lead capture** — Visitor sessions, feature usage, email signups, and identified users tracked server-side
+7. **Admin pull script** — One command to download all analytics, signups, and visitor edits
 
 ### Tech Stack
 
@@ -28,7 +31,10 @@ This project automates that entire workflow with a three-stage Python pipeline a
 | Charts | Recharts |
 | Icons | Lucide React |
 | State management | React Context + localStorage |
-| Deployment | Netlify |
+| Backend | Netlify Functions (serverless) |
+| Storage | Netlify Blobs |
+| Deployment | Netlify (CI/CD from GitHub) |
+| Admin tooling | Python pull scripts |
 
 ## Dashboard Views
 
@@ -38,11 +44,11 @@ This project automates that entire workflow with a three-stage Python pipeline a
 - **Transfer Pairs** — Matched debit ↔ credit pairs with expandable detail, plus unpaired transfers
 - **Job Audit** — Per-project expense breakdowns from PO codes and payment notes, with category charts
 - **Monthly** — Income vs. expenses by month with expandable per-category breakdowns
-- **About** — Project write-up, tech stack, share buttons, and contact info
+- **About** — Project write-up, server architecture, live stats, tech stack, share buttons, and contact info
 
 ## Interactive Features
 
-All edits are stored in `localStorage` and can be exported as JSON or CSV.
+All edits are stored in `localStorage` **and** synced to the server (debounced 3s).
 
 ### Editing & Annotation
 - **Category dropdown** — Change any transaction's tax category, or add a custom category
@@ -60,7 +66,7 @@ All edits are stored in `localStorage` and can be exported as JSON or CSV.
 ### Identity System (Demo-Only)
 - The dashboard is **freely viewable** without signing in
 - Interactive actions (editing, notes, flags, feedback) prompt for **name and email**
-- Identity is persisted in `localStorage` — sign in once, then interact freely
+- Identity is persisted in `localStorage` and synced to the server
 - All submissions are tagged with the user's name and email
 - Sign out anytime from the header
 
@@ -68,25 +74,41 @@ All edits are stored in `localStorage` and can be exported as JSON or CSV.
 - **Interactive demo banner** — Dismissable banner guiding visitors to try the interactive features
 - **Guided tour** — "Take a Tour" button walks through 6 key features step-by-step
 - **Onboarding hints** — Subtle pulse animations on interactive elements for first-time visitors
-- **Visitor counter** — View count displayed in the header
+- **Real visitor stats** — Server-backed visitor count and interaction count in the header
+- **Live stats on About page** — Real-time visitors, interactions, signups, and tour completions
 - **Share buttons** — Copy link, LinkedIn, and X/Twitter sharing on the About page
-- **Email list popup** — After ~60 seconds, invites visitors to join the mailing list or visit bizzib.ai
+- **Email list popup** — After ~60 seconds, invites visitors to join the mailing list (signups go to server)
 
-### localStorage Keys
+## Server-Side Architecture
 
-| Key | Contents |
-|---|---|
-| `demo_reviewer_identity` | `{ name, email, signedInAt }` |
-| `demo_review_edits` | `{ [transaction_id]: { category?, note?, flagged? } }` |
-| `demo_change_log` | `[ { timestamp, type, transaction_id?, user_name, user_email, ... } ]` |
-| `demo_custom_categories` | `[ "snake_case_key", ... ]` |
-| `demo_general_feedback` | `[ { timestamp, page, text, user_name, user_email } ]` |
-| `demo_banner_dismissed` | `"true"` if banner dismissed |
-| `demo_hints_seen` | `"true"` after onboarding hints expire |
-| `demo_email_popup_dismissed` | `"true"` if popup dismissed or submitted |
-| `demo_email_signups` | `[ { name, email, timestamp } ]` |
-| `demo_visitor_id` | Unique visitor ID |
-| `demo_visit_count` | Raw visit count |
+### Netlify Functions (`netlify/functions/`)
+
+| Function | Method | Purpose |
+|---|---|---|
+| `analytics.mjs` | GET | Returns all sessions, events, signups, identities |
+| `analytics.mjs` | POST | Records a session, event, signup, or identity |
+| `sync.mjs` | GET | Returns all visitor edits (or single visitor by ID) |
+| `sync.mjs` | POST | Saves a visitor's edits, changelog, feedback |
+| `stats.mjs` | GET | Returns aggregated stats (cached 60s) |
+
+### Storage (Netlify Blobs)
+
+| Store | Key(s) | Contents |
+|---|---|---|
+| `demo-analytics` | `sessions` | Visitor sessions (capped at 5,000) |
+| `demo-analytics` | `events` | Feature interactions (capped at 10,000) |
+| `demo-analytics` | `signups` | Email list signups |
+| `demo-analytics` | `identities` | Identified users (name + email) |
+| `demo-visitor-edits` | `visitor:{id}` | Per-visitor edits, changelog, feedback |
+| `demo-visitor-edits` | `visitor-index` | List of all visitor IDs |
+
+### Admin Pull Script
+
+```bash
+python pull_demo_analytics.py
+```
+
+Downloads all analytics and visitor edits, prints a summary, and saves raw JSON to `data/exports/`.
 
 ## Architecture
 
@@ -112,10 +134,16 @@ CSV/HTML/PDF Sources
 └──────────┬───────────┘
            │  data.json
            ▼
-┌──────────────────────┐
-│   React Dashboard     │  ← Interactive review, editing,
-│   (this app)          │    and export
-└──────────────────────┘
+┌──────────────────────┐        ┌─────────────────────────┐
+│   React Dashboard     │ ──▶   │  Netlify Functions       │
+│   (this app)          │ ◀──   │  + Netlify Blobs         │
+└──────────────────────┘        └─────────────────────────┘
+                                         │
+                                         ▼
+                                ┌─────────────────────────┐
+                                │  pull_demo_analytics.py  │
+                                │  (admin pull script)     │
+                                └─────────────────────────┘
 ```
 
 ## Differences from Production Dashboard
@@ -125,8 +153,11 @@ CSV/HTML/PDF Sources
 | Data | Real financial data (1,310 txns) | Anonymized sample data (~1,165 txns) |
 | Access control | Password-protected | Open viewing; identity prompt on interaction |
 | Identity | Single user (Eric) | Name + email collected per visitor |
-| Submissions | Edits attributed to session | Edits tagged with user name/email |
-| Onboarding | None (Eric knows the tool) | Banner, guided tour, pulse hints |
+| Server sync | Single-user edits to Netlify Blobs | Per-visitor edits to Netlify Blobs |
+| Analytics | None (single known user) | Full visitor tracking, feature usage, signups |
+| Communication | Messages tab, Open Questions tab | None (visitors are anonymous prospects) |
+| Admin tooling | `pull_edits.py` | `pull_demo_analytics.py` |
+| Onboarding | Welcome modal (personalized) | Banner, guided tour, pulse hints |
 | Marketing | None | Email list popup, share buttons, bizzib.ai links |
 
 ## Running Locally
@@ -137,6 +168,8 @@ npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173)
+
+> **Note**: Server-side features (analytics, sync, stats) require Netlify Functions and won't work locally with `npm run dev` alone. Use `netlify dev` for full local testing with functions.
 
 ## Data
 
