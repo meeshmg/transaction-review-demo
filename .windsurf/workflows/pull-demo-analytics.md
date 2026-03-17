@@ -59,9 +59,44 @@ The raw JSON files are saved to `data/exports/` with today's date:
 
 These are gitignored. Keep them locally for trend analysis over time.
 
+## Step 7: Update documentation (if making changes)
+
+If you make any changes to the demo dashboard based on analytics or feedback:
+
+1. Update `CHANGELOG.md` with a new dated section describing what changed and why
+2. Update `README.md` if features, architecture, or tech stack changed
+3. Update `BLOG.md` if the narrative needs to reflect new capabilities
+4. Commit docs with the code change — never commit code without updating docs
+
+## Cron Job Management
+
+A macOS cron job runs `pull_demo_analytics.py` daily at 9am. Data lands in `data/exports/`.
+
+**View current cron:**
+```bash
+crontab -l
+```
+
+**Disable the cron job:**
+```bash
+crontab -r
+```
+
+**Re-enable at a different time (e.g., 8am):**
+```bash
+echo "0 8 * * * /Users/mgriffith/miniconda3/bin/python3 /Users/mgriffith/Desktop/transaction-review-demo/pull_demo_analytics.py >> /Users/mgriffith/Desktop/transaction-review-demo/data/exports/cron.log 2>&1" | crontab -
+```
+
+**Check cron output:**
+```bash
+cat /Users/mgriffith/Desktop/transaction-review-demo/data/exports/cron.log
+```
+
+> Note: The cron job only runs when your Mac is on and awake at the scheduled time.
+
 ## Notes
 
 - The pull script hits the **live** Netlify site at `https://transaction-review-demo.netlify.app`
-- A macOS cron job runs this daily at 9am (see crontab entry)
 - Data in Netlify Blobs is capped (5K sessions, 10K events, 1K visitors) to prevent storage issues
 - If you need to reset the analytics (e.g., after testing), you can clear the Netlify Blobs from the Netlify dashboard under Site > Blobs
+- Export files in `data/exports/` are gitignored — they stay local only
