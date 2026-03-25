@@ -4,6 +4,22 @@ All notable changes to the Transaction Review Demo are documented here.
 
 ---
 
+## 2026-03-25 — Save Button + Stats Fix
+
+### Save to Server
+- Added green "Save" button in header — appears when visitor has unsaved changes
+- Flushes sync immediately (bypasses 3s debounce), clears changelog, shows "Saved!" confirmation
+- Persistent "All changes saved" status when no unsaved changes but edits exist
+- Matches the production dashboard's save workflow
+
+### About Page Stats
+- Stats section now always renders with a live green pulse indicator
+- Each metric (visitors, page views, interactions, signups, tours, active users) only appears when its count is > 0
+- Eliminates the empty stats panel and "0 Email Signups" / "0 Tours Completed" display
+- Stats still pulled from real server data via `/api/stats`
+
+---
+
 ## 2026-03-17 — Blog & Repo Reorganization
 
 ### Blog Posts
