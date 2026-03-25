@@ -222,6 +222,8 @@ function EditProvider({ children }) {
   const [changeLog, setChangeLog] = useState(loadLog)
   const [customCategories, setCustomCategories] = useState(loadCustomCats)
   const [feedback, setFeedback] = useState(loadFeedback)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveConfirm, setSaveConfirm] = useState(false)
   const identityRef = React.useRef(identity)
   useEffect(() => { identityRef.current = identity }, [identity])
 
@@ -372,12 +374,38 @@ function EditProvider({ children }) {
     a.click(); URL.revokeObjectURL(url)
   }, [transactions, edits])
 
+  // Explicit save: flush sync immediately and clear changelog
+  const saveToServer = useCallback(async () => {
+    setIsSaving(true)
+    try {
+      clearTimeout(_syncTimer)
+      await fetch(`${API_BASE}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visitor_id: getVisitorId(),
+          edits, changeLog, customCategories, feedback,
+          identity: identityRef.current,
+        }),
+      })
+      setChangeLog([])
+      localStorage.removeItem(LOG_KEY)
+      setSaveConfirm(true)
+      setTimeout(() => setSaveConfirm(false), 2500)
+    } catch {
+      alert('Save failed — your edits are still safe in your browser. Please try again.')
+    } finally {
+      setIsSaving(false)
+    }
+  }, [edits, changeLog, customCategories, feedback])
+
   const value = useMemo(() => ({
     edits, transactions, categories, changeLog, feedback,
     updateCategory, updateNote, toggleFlag, addFeedback, undoChange, resetAll,
-    downloadChangeLog, downloadEditsSnapshot, addCategory, allCategories, customCategories,
+    downloadChangeLog, downloadEditsSnapshot, saveToServer, isSaving, saveConfirm,
+    addCategory, allCategories, customCategories,
     requireIdentity,
-  }), [edits, transactions, categories, changeLog, feedback, updateCategory, updateNote, toggleFlag, addFeedback, undoChange, resetAll, downloadChangeLog, downloadEditsSnapshot, addCategory, allCategories, customCategories, requireIdentity])
+  }), [edits, transactions, categories, changeLog, feedback, updateCategory, updateNote, toggleFlag, addFeedback, undoChange, resetAll, downloadChangeLog, downloadEditsSnapshot, saveToServer, isSaving, saveConfirm, addCategory, allCategories, customCategories, requireIdentity])
 
   return <EditContext.Provider value={value}>{children}</EditContext.Provider>
 }
@@ -773,7 +801,7 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [expandedPairs, setExpandedPairs] = useState(new Set())
   const [changeLogOpen, setChangeLogOpen] = useState(false)
-  const { changeLog, downloadChangeLog, downloadEditsSnapshot, resetAll, edits } = useEdits()
+  const { changeLog, downloadChangeLog, downloadEditsSnapshot, resetAll, edits, saveToServer, isSaving, saveConfirm } = useEdits()
   const { identity, signOut } = useIdentity()
   const editCount = Object.keys(edits).length
   const stats = useRealStats()
@@ -821,12 +849,26 @@ function App() {
                 </>
               )}
               <GuidedTour onNavigate={navigateToTab} />
+              {/* Save status — visible when edits exist but no unsaved changes */}
+              {editCount > 0 && changeLog.length === 0 && !saveConfirm && (
+                <span className="text-xs text-gray-400 flex items-center gap-1.5">
+                  <Save size={12} className="text-green-500" /> All changes saved
+                </span>
+              )}
+              {saveConfirm && (
+                <span className="text-xs text-green-600 font-medium animate-pulse">Saved!</span>
+              )}
+              {changeLog.length > 0 && (
+                <button onClick={saveToServer} disabled={isSaving} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors cursor-pointer disabled:opacity-50" title="Save all changes to server">
+                  <Save size={14} /> {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              )}
               {changeLog.length > 0 && (
                 <button onClick={() => setChangeLogOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors cursor-pointer" title="View change log">
                   <History size={14} /> Change Log ({changeLog.length})
                 </button>
               )}
-              {editCount > 0 && (
+              {changeLog.length > 0 && (
                 <>
                   <button onClick={downloadChangeLog} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors cursor-pointer" title="Download change log (JSON)">
                     <FileText size={14} /> Download Log
@@ -2145,30 +2187,56 @@ function AboutView() {
         </div>
       </div>
 
-      {stats.visitors > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Live Demo Stats</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          Live Demo Stats
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+          {stats.visitors > 0 && (
             <div>
               <p className="text-2xl font-bold text-gray-900">{stats.visitors}</p>
               <p className="text-xs text-gray-500">Unique Visitors</p>
             </div>
+          )}
+          {stats.totalSessions > 0 && (
+            <div>
+              <p className="text-2xl font-bold text-blue-600">{stats.totalSessions}</p>
+              <p className="text-xs text-gray-500">Page Views</p>
+            </div>
+          )}
+          {stats.totalEdits > 0 && (
             <div>
               <p className="text-2xl font-bold text-indigo-600">{stats.totalEdits}</p>
               <p className="text-xs text-gray-500">Interactions</p>
             </div>
+          )}
+          {stats.totalSignups > 0 && (
             <div>
-              <p className="text-2xl font-bold text-green-600">{stats.totalSignups || 0}</p>
+              <p className="text-2xl font-bold text-green-600">{stats.totalSignups}</p>
               <p className="text-xs text-gray-500">Email Signups</p>
             </div>
+          )}
+          {stats.tourCompletions > 0 && (
             <div>
-              <p className="text-2xl font-bold text-amber-600">{stats.tourCompletions || 0}</p>
+              <p className="text-2xl font-bold text-amber-600">{stats.tourCompletions}</p>
               <p className="text-xs text-gray-500">Tours Completed</p>
             </div>
-          </div>
-          <p className="text-[10px] text-gray-400 text-center mt-3">Real numbers from the server — not localStorage estimates.</p>
+          )}
+          {stats.activeVisitors > 0 && (
+            <div>
+              <p className="text-2xl font-bold text-purple-600">{stats.activeVisitors}</p>
+              <p className="text-xs text-gray-500">Active Users</p>
+            </div>
+          )}
         </div>
-      )}
+        {stats.visitors === 0 && stats.totalSessions === 0 && (
+          <p className="text-xs text-gray-400 text-center mt-3">Stats update in real time as visitors interact with the demo.</p>
+        )}
+        {(stats.visitors > 0 || stats.totalSessions > 0) && (
+          <p className="text-[10px] text-gray-400 text-center mt-3">Real numbers from the server — updated live.</p>
+        )}
+      </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Share This Demo</h3>
